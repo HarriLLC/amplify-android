@@ -26,40 +26,40 @@ import com.amplifyframework.statemachine.codegen.events.AuthorizationEvent
 import com.amplifyframework.statemachine.codegen.events.DeleteUserEvent
 
 internal object DeleteUserCognitoActions : DeleteUserActions {
-    override fun initDeleteUserAction(accessToken: String): Action =
+    override fun initDeleteUserAction(accessToken: String, userId: String): Action =
         Action<AuthEnvironment>("DeleteUser") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             try {
                 cognitoAuthService.cognitoIdentityProviderClient?.deleteUser(
                     DeleteUserRequest.invoke { this.accessToken = accessToken }
                 )
-                val evt = DeleteUserEvent(DeleteUserEvent.EventType.UserDeleted())
+                val evt = DeleteUserEvent(DeleteUserEvent.EventType.UserDeleted(userId = userId))
                 logger.verbose("$id Sending event ${evt.type}")
                 dispatcher.send(evt)
             } catch (e: Exception) {
                 logger.warn("Failed to delete user.", e)
                 if (e is UserNotFoundException) {
                     // The user could have been remotely deleted, clear local session
-                    val evt = DeleteUserEvent(DeleteUserEvent.EventType.ThrowError(e, true))
+                    val evt = DeleteUserEvent(DeleteUserEvent.EventType.ThrowError(e, userId, true))
                     logger.verbose("$id Sending event ${evt.type}")
                     dispatcher.send(evt)
                 } else {
-                    val evt = DeleteUserEvent(DeleteUserEvent.EventType.ThrowError(e, false))
+                    val evt = DeleteUserEvent(DeleteUserEvent.EventType.ThrowError(e, userId, false))
                     logger.verbose("$id Sending event ${evt.type}")
                     dispatcher.send(evt)
-                    val evt2 = AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(e))
+                    val evt2 = AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(userId, e))
                     logger.verbose("$id Sending event ${evt2.type}")
                     dispatcher.send(evt2)
                 }
             }
         }
 
-    override fun initiateSignOut(): Action =
+    override fun initiateSignOut(userId: String): Action =
         Action<AuthEnvironment>("Sign Out Deleted User") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             val evt = AuthorizationEvent(AuthorizationEvent.EventType.UserDeleted())
             val evt2 = AuthenticationEvent(
-                AuthenticationEvent.EventType.SignOutRequested(SignOutData(globalSignOut = true, bypassCancel = true))
+                AuthenticationEvent.EventType.SignOutRequested(SignOutData(userId = userId, globalSignOut = true, bypassCancel = true))
             )
             logger.verbose("$id Sending event ${evt.type}")
             dispatcher.send(evt)

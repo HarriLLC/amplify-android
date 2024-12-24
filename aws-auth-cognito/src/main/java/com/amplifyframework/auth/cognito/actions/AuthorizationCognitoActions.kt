@@ -17,6 +17,7 @@ package com.amplifyframework.auth.cognito.actions
 
 import com.amplifyframework.AmplifyException
 import com.amplifyframework.auth.cognito.AuthEnvironment
+import com.amplifyframework.auth.cognito.getCognitoSession
 import com.amplifyframework.auth.exceptions.ConfigurationException
 import com.amplifyframework.statemachine.Action
 import com.amplifyframework.statemachine.codegen.actions.AuthorizationActions
@@ -39,13 +40,14 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
         dispatcher.send(evt)
     }
 
-    override fun initializeFetchUnAuthSession() =
+    override fun initializeFetchUnAuthSession(userId: String) =
         Action<AuthEnvironment>("InitFetchUnAuthSession") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             val evt = configuration.identityPool?.poolId?.let {
                 FetchAuthSessionEvent(FetchAuthSessionEvent.EventType.FetchIdentity(LoginsMapProvider.UnAuthLogins()))
             } ?: AuthorizationEvent(
                 AuthorizationEvent.EventType.ThrowError(
+                    userId,
                     ConfigurationException(
                         "Identity Pool not configured.",
                         "Please check amplifyconfiguration.json file."
@@ -62,28 +64,34 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
             val evt = when {
                 configuration.userPool?.poolId == null -> AuthorizationEvent(
                     AuthorizationEvent.EventType.ThrowError(
+                        signedInData.userId,
                         ConfigurationException(
                             "User Pool not configured.",
                             "Please check amplifyconfiguration.json file."
                         )
                     )
                 )
+
                 configuration.identityPool?.poolId == null -> AuthorizationEvent(
                     AuthorizationEvent.EventType.ThrowError(
+                        signedInData.userId,
                         ConfigurationException(
                             "Identity Pool not configured.",
                             "Please check amplifyconfiguration.json file."
                         )
                     )
                 )
+
                 signedInData.cognitoUserPoolTokens.idToken == null -> AuthorizationEvent(
                     AuthorizationEvent.EventType.ThrowError(
+                        signedInData.userId,
                         ConfigurationException(
                             "Identity token is null.",
                             AmplifyException.TODO_RECOVERY_SUGGESTION
                         )
                     )
                 )
+
                 else -> {
                     val logins = LoginsMapProvider.CognitoUserPoolLogins(
                         configuration.userPool.region,
@@ -94,35 +102,43 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
                 }
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, signedInData.email.orEmpty())
         }
 
-    override fun initiateRefreshSessionAction(amplifyCredential: AmplifyCredential) =
+    override fun initiateRefreshSessionAction(userId: String, amplifyCredential: AmplifyCredential) =
         Action<AuthEnvironment>("InitiateRefreshSession") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             val evt = when (amplifyCredential) {
                 is AmplifyCredential.UserPoolTypeCredential -> RefreshSessionEvent(
                     RefreshSessionEvent.EventType.RefreshUserPoolTokens(amplifyCredential.signedInData)
                 )
+
                 is AmplifyCredential.IdentityPool -> RefreshSessionEvent(
                     RefreshSessionEvent.EventType.RefreshUnAuthSession(
                         amplifyCredential.identityId,
                         LoginsMapProvider.UnAuthLogins()
                     )
                 )
+
                 is AmplifyCredential.IdentityPoolFederated -> {
                     AuthorizationEvent(
                         AuthorizationEvent.EventType.ThrowError(
+                            userId,
                             Exception("Refreshing credentials from federationToIdentityPool is not supported.")
                         )
                     )
                 }
+
                 else -> AuthorizationEvent(
-                    AuthorizationEvent.EventType.ThrowError(Exception("Credentials empty, cannot refresh."))
+                    AuthorizationEvent.EventType.ThrowError(userId, Exception("Credentials empty, cannot refresh."))
                 )
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            val username = when (amplifyCredential) {
+                is AmplifyCredential.UserPoolTypeCredential -> amplifyCredential.signedInData.email.orEmpty()
+                else -> ""
+            }
+            dispatcher.send(evt, username)
         }
 
     override fun initializeFederationToIdentityPool(
@@ -145,21 +161,29 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
     override fun initiateDeleteUser(event: DeleteUserEvent.EventType.DeleteUser) =
         Action<AuthEnvironment>("InitiateDeleteUser") { id, dispatcher ->
             logger.verbose("$id Starting execution")
-            val evt = DeleteUserEvent(DeleteUserEvent.EventType.DeleteUser(event.accessToken))
+            val evt =
+                DeleteUserEvent(DeleteUserEvent.EventType.DeleteUser(event.accessToken, event.userId, event.username))
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.username)
         }
 
     override fun persistCredentials(amplifyCredential: AmplifyCredential) =
         Action<AuthEnvironment>("PersistCredentials") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             val evt = try {
-                credentialStoreClient.storeCredentials(CredentialType.Amplify, amplifyCredential)
+                credentialStoreClient.storeCredentials(
+                    CredentialType.Amplify(amplifyCredential.getCognitoSession().userSubResult.value),
+                    amplifyCredential
+                )
                 AuthEvent(AuthEvent.EventType.ReceivedCachedCredentials(amplifyCredential))
             } catch (e: Exception) {
                 AuthEvent(AuthEvent.EventType.CachedCredentialsFailed)
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            val username = when (amplifyCredential) {
+                is AmplifyCredential.UserPoolTypeCredential -> amplifyCredential.signedInData.email.orEmpty()
+                else -> ""
+            }
+            dispatcher.send(evt, username)
         }
 }

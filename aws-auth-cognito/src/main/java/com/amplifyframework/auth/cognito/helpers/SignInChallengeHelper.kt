@@ -49,6 +49,7 @@ import kotlin.time.Duration.Companion.seconds
 internal object SignInChallengeHelper {
     fun evaluateNextStep(
         username: String,
+        email: String,
         challengeNameType: ChallengeNameType?,
         session: String?,
         challengeParameters: Map<String, String>? = null,
@@ -67,7 +68,8 @@ internal object SignInChallengeHelper {
                     username,
                     Date(),
                     signInMethod,
-                    tokens
+                    tokens,
+                    email
                 )
                 it.newDeviceMetadata?.let { metadata ->
                     SignInEvent(
@@ -87,17 +89,19 @@ internal object SignInChallengeHelper {
                 )
             }
         }
+
         challengeNameType is ChallengeNameType.SmsMfa ||
-            challengeNameType is ChallengeNameType.CustomChallenge ||
-            challengeNameType is ChallengeNameType.NewPasswordRequired ||
-            challengeNameType is ChallengeNameType.SoftwareTokenMfa ||
-            challengeNameType is ChallengeNameType.SelectMfaType ||
-            challengeNameType is ChallengeNameType.SmsOtp ||
-            challengeNameType is ChallengeNameType.EmailOtp -> {
+                challengeNameType is ChallengeNameType.CustomChallenge ||
+                challengeNameType is ChallengeNameType.NewPasswordRequired ||
+                challengeNameType is ChallengeNameType.SoftwareTokenMfa ||
+                challengeNameType is ChallengeNameType.SelectMfaType ||
+                challengeNameType is ChallengeNameType.SmsOtp ||
+                challengeNameType is ChallengeNameType.EmailOtp -> {
             val challenge =
                 AuthChallenge(challengeNameType.value, username, session, challengeParameters)
             SignInEvent(SignInEvent.EventType.ReceivedChallenge(challenge, signInMethod))
         }
+
         challengeNameType is ChallengeNameType.MfaSetup -> {
             val allowedMFASetupTypes = getAllowedMFASetupTypesFromChallengeParameters(challengeParameters)
             val challenge = AuthChallenge(challengeNameType.value, username, session, challengeParameters)
@@ -115,9 +119,11 @@ internal object SignInChallengeHelper {
                 )
             }
         }
+
         challengeNameType is ChallengeNameType.DeviceSrpAuth -> {
             SignInEvent(SignInEvent.EventType.InitiateSignInWithDeviceSRP(username, mapOf()))
         }
+
         challengeNameType is ChallengeNameType.SelectChallenge -> {
             SignInEvent(
                 SignInEvent.EventType.ReceivedChallenge(
@@ -132,6 +138,7 @@ internal object SignInChallengeHelper {
                 )
             )
         }
+
         challengeNameType is ChallengeNameType.WebAuthn -> {
             val requestOptions = challengeParameters?.get(ChallengeParameter.CredentialRequestOptions.key)
             val signInContext = WebAuthnSignInContext(
@@ -142,6 +149,7 @@ internal object SignInChallengeHelper {
             )
             SignInEvent(SignInEvent.EventType.InitiateWebAuthnSignIn(signInContext))
         }
+
         else -> SignInEvent(SignInEvent.EventType.ThrowError(Exception("Response did not contain sign in info.")))
     }
 
@@ -180,6 +188,7 @@ internal object SignInChallengeHelper {
                 )
                 onSuccess.accept(authSignInResult)
             }
+
             is ChallengeNameType.NewPasswordRequired -> {
                 val authSignInResult = AuthSignInResult(
                     false,
@@ -194,6 +203,7 @@ internal object SignInChallengeHelper {
                 )
                 onSuccess.accept(authSignInResult)
             }
+
             is ChallengeNameType.CustomChallenge -> {
                 val authSignInResult = AuthSignInResult(
                     false,
@@ -208,6 +218,7 @@ internal object SignInChallengeHelper {
                 )
                 onSuccess.accept(authSignInResult)
             }
+
             is ChallengeNameType.SoftwareTokenMfa -> {
                 val authSignInResult = AuthSignInResult(
                     false,
@@ -222,6 +233,7 @@ internal object SignInChallengeHelper {
                 )
                 onSuccess.accept(authSignInResult)
             }
+
             is ChallengeNameType.MfaSetup -> {
                 val allowedMFASetupTypes = getAllowedMFASetupTypesFromChallengeParameters(challengeParams)
 
@@ -268,6 +280,7 @@ internal object SignInChallengeHelper {
                     onError.accept(UnknownException(cause = Exception("Challenge type not supported.")))
                 }
             }
+
             is ChallengeNameType.SelectMfaType -> {
                 val authSignInResult = AuthSignInResult(
                     false,
@@ -282,6 +295,7 @@ internal object SignInChallengeHelper {
                 )
                 onSuccess.accept(authSignInResult)
             }
+
             is ChallengeNameType.SelectChallenge -> {
                 val authSignInResult = AuthSignInResult(
                     false,
@@ -296,6 +310,7 @@ internal object SignInChallengeHelper {
                 )
                 onSuccess.accept(authSignInResult)
             }
+
             else -> onError.accept(UnknownException(cause = Exception("Challenge type not supported.")))
         }
     }

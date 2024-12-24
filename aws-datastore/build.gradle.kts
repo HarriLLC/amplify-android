@@ -25,6 +25,12 @@ group = properties["POM_GROUP"].toString()
 
 android {
     namespace = "com.amplifyframework.datastore"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
@@ -64,5 +70,5 @@ dependencies {
 }
 
 afterEvaluate {
-    android.kotlinOptions.jvmTarget = JavaVersion.VERSION_11.toString()
+    android.kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
 }

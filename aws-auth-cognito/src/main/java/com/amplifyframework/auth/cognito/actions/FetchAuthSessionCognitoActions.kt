@@ -99,12 +99,12 @@ internal object FetchAuthSessionCognitoActions : FetchAuthSessionActions {
                 }
             } catch (notAuthorized: aws.sdk.kotlin.services.cognitoidentityprovider.model.NotAuthorizedException) {
                 val error = SessionExpiredException(cause = notAuthorized)
-                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(error))
+                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(signedInData.userId, error))
             } catch (e: Exception) {
-                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(e))
+                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(signedInData.userId, e))
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, signedInData.email.orEmpty())
         }
 
     override fun refreshAuthSessionAction(logins: LoginsMapProvider) =
@@ -134,9 +134,9 @@ internal object FetchAuthSessionCognitoActions : FetchAuthSessionActions {
                     recoverySuggestion = SignedOutException.RECOVERY_SUGGESTION_GUEST_ACCESS_DISABLED,
                     cause = notAuthorized
                 )
-                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(exception))
+                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(null, exception))
             } catch (e: Exception) {
-                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(e))
+                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(null, e))
             }
             logger.verbose("$id Sending event ${evt.type}")
             dispatcher.send(evt)
@@ -167,9 +167,9 @@ internal object FetchAuthSessionCognitoActions : FetchAuthSessionActions {
                     recoverySuggestion = SignedOutException.RECOVERY_SUGGESTION_GUEST_ACCESS_DISABLED,
                     cause = notAuthorized
                 )
-                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(exception))
+                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(null, exception))
             } catch (e: Exception) {
-                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(e))
+                AuthorizationEvent(AuthorizationEvent.EventType.ThrowError(null, e))
             }
             logger.verbose("$id Sending event ${evt.type}")
             dispatcher.send(evt)
@@ -188,6 +188,10 @@ internal object FetchAuthSessionCognitoActions : FetchAuthSessionActions {
             logger.verbose("$id Starting execution")
             val evt = AuthorizationEvent(AuthorizationEvent.EventType.Refreshed(amplifyCredential))
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            val username = when (amplifyCredential) {
+                is AmplifyCredential.UserPoolTypeCredential -> amplifyCredential.signedInData.email.orEmpty()
+                else -> ""
+            }
+            dispatcher.send(evt, username)
         }
 }

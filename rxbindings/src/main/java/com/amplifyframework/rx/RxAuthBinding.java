@@ -312,12 +312,12 @@ final class RxAuthBinding implements RxAuthCategoryBehavior {
 
     @Override
     public Single<AuthSignOutResult> signOut() {
-        return toSingle((onComplete, onError) -> delegate.signOut(onComplete));
+        return toSingle((onComplete, onError) -> delegate.signOut("","",onComplete));
     }
 
     @Override
     public Single<AuthSignOutResult> signOut(@NonNull AuthSignOutOptions options) {
-        return toSingle((onComplete, onError) -> delegate.signOut(options, onComplete));
+        return toSingle((onComplete, onError) -> delegate.signOut("", "", options, onComplete));
     }
 
     @Override

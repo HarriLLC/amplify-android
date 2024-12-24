@@ -16,6 +16,7 @@
 package com.amplifyframework.core.category;
 
 import android.content.Context;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.WorkerThread;
 
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * A category groups together zero or more plugins that share the same
  * category type.
+ *
  * @param <P> A base class type for plugins that this category will
  *            support, e.g. StoragePlugin, AnalyticsPlugin, etc.
  */
@@ -69,10 +71,51 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
         this.categoryInitializationResult = new AtomicReference<>(null);
     }
 
+
     /**
      * Configure category with provided AmplifyConfiguration object.
+     *
      * @param configuration Configuration for all plugins in the category
-     * @param context An Android Context
+     * @param context       An Android Context
+     * @throws AmplifyException if already configured
+     */
+    public synchronized void configure(
+            @NonNull CategoryConfiguration configuration, final String userId, @NonNull Context context)
+            throws AmplifyException {
+        synchronized (state) {
+            if (!State.NOT_CONFIGURED.equals(state.get())) {
+                throw new AmplifyException(
+                        "Category " + getCategoryType() + " has already been configured or is currently configuring.",
+                        "Ensure that you are only attempting configuration once."
+                );
+            }
+            state.set(State.CONFIGURING);
+            try {
+                for (P plugin : getPlugins()) {
+                    if (configureFromDefaultConfigFile()) {
+                        String pluginKey = plugin.getPluginKey();
+                        JSONObject pluginConfig = configuration.getPluginConfig(pluginKey);
+                        if (pluginKey.equals("awsCognitoAuthPlugin")) {
+                            plugin.configure(pluginConfig != null ? pluginConfig : new JSONObject(), userId, context);
+                        } else {
+                            plugin.configure(pluginConfig != null ? pluginConfig : new JSONObject(), context);
+                        }
+                    }
+                }
+                state.set(State.CONFIGURED);
+            } catch (Throwable anyError) {
+                state.set(State.CONFIGURATION_FAILED);
+                throw anyError;
+            }
+        }
+    }
+
+
+    /**
+     * Configure category with provided AmplifyConfiguration object.
+     *
+     * @param configuration Configuration for all plugins in the category
+     * @param context       An Android Context
      * @throws AmplifyException if already configured
      */
     public synchronized void configure(
@@ -81,8 +124,8 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
         synchronized (state) {
             if (!State.NOT_CONFIGURED.equals(state.get())) {
                 throw new AmplifyException(
-                    "Category " + getCategoryType() + " has already been configured or is currently configuring.",
-                    "Ensure that you are only attempting configuration once."
+                        "Category " + getCategoryType() + " has already been configured or is currently configuring.",
+                        "Ensure that you are only attempting configuration once."
                 );
             }
             state.set(State.CONFIGURING);
@@ -104,20 +147,21 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Configure category with provided AmplifyOutputs object.
+     *
      * @param configuration AmplifyOutputs configuration information
-     * @param context An Android Context
+     * @param context       An Android Context
      * @throws AmplifyException if already configured
      */
     @InternalAmplifyApi
     public synchronized void configure(
-        @NonNull AmplifyOutputsData configuration,
-        @NonNull Context context
+            @NonNull AmplifyOutputsData configuration,
+            @NonNull Context context
     ) throws AmplifyException {
         synchronized (state) {
             if (!State.NOT_CONFIGURED.equals(state.get())) {
                 throw new AmplifyException(
-                    "Category " + getCategoryType() + " has already been configured or is currently configuring.",
-                    "Ensure that you are only attempting configuration once."
+                        "Category " + getCategoryType() + " has already been configured or is currently configuring.",
+                        "Ensure that you are only attempting configuration once."
                 );
             }
             state.set(State.CONFIGURING);
@@ -139,6 +183,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
      * Initialize the category. This asynchronous call is made only after
      * the category has been successfully configured. Whereas configuration is a short-lived
      * synchronous phase of setup, initialization may require disk/network resources, etc.
+     *
      * @param context An Android Context
      * @return A category initialization result
      */
@@ -149,8 +194,8 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
         if (!State.CONFIGURED.equals(state.get())) {
             for (P plugin : getPlugins()) {
                 InitializationResult result = InitializationResult.failure(new AmplifyException(
-                    "Tried to init before category was not configured.",
-                    "Call configure() on category, first."
+                        "Tried to init before category was not configured.",
+                        "Call configure() on category, first."
                 ));
                 pluginInitializationResults.put(plugin.getPluginKey(), result);
             }
@@ -169,7 +214,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
         }
 
         final CategoryInitializationResult result =
-            CategoryInitializationResult.with(pluginInitializationResults);
+                CategoryInitializationResult.with(pluginInitializationResults);
         categoryInitializationResult.set(result);
         if (result.isFailure()) {
             state.set(State.INITIALIZATION_FAILED);
@@ -178,7 +223,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
         }
         HubChannel hubChannel = HubChannel.forCategoryType(getCategoryType());
         InitializationStatus status = result.isFailure() ?
-            InitializationStatus.FAILED : InitializationStatus.SUCCEEDED;
+                InitializationStatus.FAILED : InitializationStatus.SUCCEEDED;
         Amplify.Hub.publish(hubChannel, HubEvent.create(status, result));
 
         return result;
@@ -186,14 +231,15 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Register a plugin into the Category.
+     *
      * @param plugin A plugin to add
      * @throws AmplifyException If Amplify is already configured
      */
     public final void addPlugin(@NonNull P plugin) throws AmplifyException {
         if (!State.NOT_CONFIGURED.equals(state.get())) {
             throw new AmplifyException(
-                "Category " + getCategoryType() + " has already been configured or is configuring.",
-                "Make sure that you have added all plugins before attempting configuration."
+                    "Category " + getCategoryType() + " has already been configured or is configuring.",
+                    "Make sure that you have added all plugins before attempting configuration."
             );
         }
         String pluginKey = plugin.getPluginKey();
@@ -202,6 +248,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Remove a plugin from the category.
+     *
      * @param plugin A plugin to remove
      */
     public final void removePlugin(@NonNull P plugin) {
@@ -213,6 +260,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Retrieve a plugin by its key.
+     *
      * @param pluginKey A key that identifies a plugin implementation
      * @return The plugin object associated to pluginKey, if registered
      * @throws IllegalStateException If the requested plugin does not exist, or has not been configured.
@@ -225,6 +273,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Gets the set of plugins associated with the Category.
+     *
      * @return The set of plugins associated to the Category
      */
     @NonNull
@@ -234,18 +283,18 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Obtain the registered plugin for this category.
+     *
      * @return The only registered plugin for this category
-     * @throws IllegalStateException
-     *         If the category is not configured, or if there are no
-     *         plugins associated to the category, or if Amplify has not
-     *         been configured
+     * @throws IllegalStateException If the category is not configured, or if there are no
+     *                               plugins associated to the category, or if Amplify has not
+     *                               been configured
      */
     @NonNull
     protected P getSelectedPlugin() throws IllegalStateException {
         if (plugins.size() > 1) {
             throw new IllegalStateException(
-                "Tried to get a default plugin but there are more than one to choose from in this category. " +
-                "Call getPlugin(pluginKey) to choose the specific plugin you want to use in this case."
+                    "Tried to get a default plugin but there are more than one to choose from in this category. " +
+                            "Call getPlugin(pluginKey) to choose the specific plugin you want to use in this case."
             );
         }
         Iterator<P> pluginsIterator = getPlugins().iterator();
@@ -255,13 +304,13 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
     private P getPluginIfConfiguredOrThrow(P plugin) throws IllegalStateException {
         if (plugin == null) {
             throw new IllegalStateException(
-                "Tried to get a plugin but that plugin was not present. " +
-                "Check if the plugin was added originally or perhaps was already removed."
+                    "Tried to get a plugin but that plugin was not present. " +
+                            "Check if the plugin was added originally or perhaps was already removed."
             );
         } else if (State.CONFIGURATION_FAILED.equals(state.get())) {
             throw new IllegalStateException(
-                "Failed to get plugin because configuration previously failed.  Check for failures by logging any " +
-                "exceptions thrown by Amplify.configure()."
+                    "Failed to get plugin because configuration previously failed.  Check for failures by logging any " +
+                            "exceptions thrown by Amplify.configure()."
             );
         } else if (State.INITIALIZATION_FAILED.equals(state.get())) {
             Throwable cause = null;
@@ -270,11 +319,11 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
                 cause = result.getPluginInitializationFailures().get(plugin.getPluginKey());
             }
             throw new IllegalStateException(
-                "Failed to get plugin because initialization previously failed.  See attached exception for details.",
-                cause);
+                    "Failed to get plugin because initialization previously failed.  See attached exception for details.",
+                    cause);
         } else if (!isConfigured()) {
             throw new IllegalStateException(
-                "Tried to get a plugin before it was configured.  Make sure you call Amplify.configure() first.");
+                    "Tried to get a plugin before it was configured.  Make sure you call Amplify.configure() first.");
         } else {
             return plugin;
         }
@@ -282,6 +331,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Returns whether the category has been configured.
+     *
      * @return whether the category has been configured.
      */
     protected synchronized boolean isConfigured() {
@@ -290,6 +340,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
 
     /**
      * Returns whether the category has been initialized.
+     *
      * @return whether the category has been initialized.
      */
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -301,6 +352,7 @@ public abstract class Category<P extends Plugin<?>> implements CategoryTypeable 
      * Return whether to configure the plugins using amplifyconfiguration.json.
      * override this method for categories not configured using the default amplifyconfiguration.json
      * For e.g., the Logging category
+     *
      * @return whether to configure the plugins using amplifyconfiguration.json
      */
     protected boolean configureFromDefaultConfigFile() {

@@ -25,6 +25,12 @@ group = properties["POM_GROUP"].toString()
 
 android {
     namespace = "com.amplifyframework.pushnotifications.pinpoint"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {

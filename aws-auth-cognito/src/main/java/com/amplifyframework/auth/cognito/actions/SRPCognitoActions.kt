@@ -49,6 +49,7 @@ internal object SRPCognitoActions : SRPActions {
     private const val KEY_USER_ID_FOR_SRP = "USER_ID_FOR_SRP"
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERNAME = "USERNAME"
+    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_USERID_FOR_SRP = "USER_ID_FOR_SRP"
     private const val KEY_DEVICE_KEY = "DEVICE_KEY"
     private const val KEY_CHALLENGE_NAME = "CHALLENGE_NAME"
@@ -291,6 +292,7 @@ internal object SRPCognitoActions : SRPActions {
                 if (response != null) {
                     SignInChallengeHelper.evaluateNextStep(
                         username = username,
+                        email = metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = response.challengeName,
                         session = response.session,
                         challengeParameters = response.challengeParameters,

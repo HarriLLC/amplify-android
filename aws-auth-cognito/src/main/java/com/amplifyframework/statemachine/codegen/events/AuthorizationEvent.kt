@@ -26,13 +26,13 @@ internal class AuthorizationEvent(val eventType: EventType, override val time: D
     sealed class EventType {
         object Configure : EventType()
         object FetchAuthSession : EventType()
-        object FetchUnAuthSession : EventType()
+        data class FetchUnAuthSession(val userId: String?) : EventType()
         data class Fetched(val identityId: String, val awsCredentials: AWSCredentials) : EventType()
-        data class RefreshSession(val amplifyCredential: AmplifyCredential) : EventType()
+        data class RefreshSession(val userId: String, val amplifyCredential: AmplifyCredential) : EventType()
         data class Refreshed(val amplifyCredential: AmplifyCredential) : EventType()
         data class CachedCredentialsAvailable(val amplifyCredential: AmplifyCredential) : EventType()
         data class UserDeleted(val id: String = "") : EventType()
-        data class ThrowError(val exception: Exception) : EventType()
+        data class ThrowError(val userId: String?, val exception: Exception) : EventType()
         data class StartFederationToIdentityPool(
             val token: FederatedToken,
             val identityId: String?,

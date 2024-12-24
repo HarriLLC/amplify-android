@@ -32,7 +32,7 @@ import com.amplifyframework.statemachine.codegen.events.AuthenticationEvent
 import com.amplifyframework.statemachine.codegen.events.SignOutEvent
 
 internal object SignOutCognitoActions : SignOutActions {
-    override fun hostedUISignOutAction(event: SignOutEvent.EventType.InvokeHostedUISignOut) =
+    override fun hostedUISignOutAction(userId: String, event: SignOutEvent.EventType.InvokeHostedUISignOut) =
         Action<AuthEnvironment>("HostedUISignOut") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             try {
@@ -44,9 +44,9 @@ internal object SignOutCognitoActions : SignOutActions {
                 logger.warn("Failed to sign out web ui.", e)
                 val hostedUIErrorData = HostedUIErrorData(hostedUIClient?.createSignOutUri()?.toString(), e)
                 val evt = if (event.signOutData.globalSignOut) {
-                    SignOutEvent(SignOutEvent.EventType.SignOutGlobally(event.signedInData, hostedUIErrorData))
+                    SignOutEvent(SignOutEvent.EventType.SignOutGlobally(userId, event.signedInData, hostedUIErrorData))
                 } else {
-                    SignOutEvent(SignOutEvent.EventType.RevokeToken(event.signedInData, hostedUIErrorData))
+                    SignOutEvent(SignOutEvent.EventType.RevokeToken(userId, event.signedInData, hostedUIErrorData))
                 }
                 logger.verbose("$id Sending event ${evt.type}")
                 dispatcher.send(evt)
@@ -70,7 +70,7 @@ internal object SignOutCognitoActions : SignOutActions {
             dispatcher.send(evt)
         }
 
-    override fun globalSignOutAction(event: SignOutEvent.EventType.SignOutGlobally) =
+    override fun globalSignOutAction(userId: String, event: SignOutEvent.EventType.SignOutGlobally) =
         Action<AuthEnvironment>("GlobalSignOut") { id, dispatcher ->
             logger.verbose("$id Starting execution")
             val accessToken = event.signedInData.cognitoUserPoolTokens.accessToken
@@ -79,7 +79,7 @@ internal object SignOutCognitoActions : SignOutActions {
                     GlobalSignOutRequest { this.accessToken = accessToken }
                 )
                 SignOutEvent(
-                    SignOutEvent.EventType.RevokeToken(event.signedInData, hostedUIErrorData = event.hostedUIErrorData)
+                    SignOutEvent.EventType.RevokeToken(userId, event.signedInData, hostedUIErrorData = event.hostedUIErrorData)
                 )
             } catch (e: Exception) {
                 logger.warn("Failed to sign out globally.", e)
@@ -89,6 +89,7 @@ internal object SignOutCognitoActions : SignOutActions {
                 )
                 SignOutEvent(
                     SignOutEvent.EventType.SignOutGloballyError(
+                        userId = userId,
                         signedInData = event.signedInData,
                         hostedUIErrorData = event.hostedUIErrorData,
                         globalSignOutErrorData = globalSignOutErrorData
@@ -114,7 +115,7 @@ internal object SignOutCognitoActions : SignOutActions {
                             token = refreshToken
                         }
                     )
-                    SignOutEvent(SignOutEvent.EventType.SignOutLocally(event.signedInData, event.hostedUIErrorData))
+                    SignOutEvent(SignOutEvent.EventType.SignOutLocally(event.userId, event.signedInData, event.hostedUIErrorData))
                 } else {
                     logger.debug("Access Token does not contain `origin_jti` claim. Skip revoking tokens.")
                     val error = RevokeTokenErrorData(
@@ -124,6 +125,7 @@ internal object SignOutCognitoActions : SignOutActions {
 
                     SignOutEvent(
                         SignOutEvent.EventType.SignOutLocally(
+                            userId = event.userId,
                             signedInData = event.signedInData,
                             hostedUIErrorData = event.hostedUIErrorData,
                             globalSignOutErrorData = event.globalSignOutErrorData,
@@ -140,6 +142,7 @@ internal object SignOutCognitoActions : SignOutActions {
 
                 SignOutEvent(
                     SignOutEvent.EventType.SignOutLocally(
+                        userId = event.userId,
                         signedInData = event.signedInData,
                         hostedUIErrorData = event.hostedUIErrorData,
                         globalSignOutErrorData = event.globalSignOutErrorData,
@@ -162,6 +165,7 @@ internal object SignOutCognitoActions : SignOutActions {
 
             val evt = SignOutEvent(
                 SignOutEvent.EventType.SignOutLocally(
+                    userId = event.userId,
                     signedInData = event.signedInData,
                     hostedUIErrorData = event.hostedUIErrorData,
                     globalSignOutErrorData = event.globalSignOutErrorData,

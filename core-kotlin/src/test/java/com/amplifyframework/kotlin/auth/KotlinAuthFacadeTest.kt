@@ -923,7 +923,7 @@ class KotlinAuthFacadeTest {
         val expected = AuthSignOutResult()
         var onCompleteConsumer: Consumer<AuthSignOutResult>? = null
         every {
-            delegate.signOut(any(), any())
+            delegate.signOut("","", any(), any())
         } answers {
             val indexOfCompletionAction = 1
             onCompleteConsumer = it.invocation.args[indexOfCompletionAction] as Consumer<AuthSignOutResult>
@@ -933,7 +933,7 @@ class KotlinAuthFacadeTest {
         // Since nothing returned, just verify it called through.
         assertNotNull(onCompleteConsumer)
         verify {
-            delegate.signOut(any(), onCompleteConsumer!!)
+            delegate.signOut("","", any(), onCompleteConsumer!!)
         }
     }
 

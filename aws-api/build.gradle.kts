@@ -29,6 +29,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     testOptions {
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
@@ -71,5 +77,5 @@ dependencies {
 }
 
 android.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }

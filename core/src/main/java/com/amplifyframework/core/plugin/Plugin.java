@@ -16,6 +16,7 @@
 package com.amplifyframework.core.plugin;
 
 import android.content.Context;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
@@ -34,14 +35,14 @@ import org.json.JSONObject;
  * added into the Amplify system before configuration, via calls to
  * {@link Amplify#addPlugin(Plugin)}. You can remove a plugin from the system
  * with {@link Amplify#removePlugin(Plugin)}.
- *
+ * <p>
  * The lifecycle of a plugin is:
  * 1. {@link #configure(JSONObject, Context)} is called, loading configuration data
- *    in a synchronous way. Do not do "heavy lifting" here, or you may cause ANRs.
+ * in a synchronous way. Do not do "heavy lifting" here, or you may cause ANRs.
  * 2. {@link #initialize(Context)} is called, providing an opportunity to initialize
- *    your plugin using the configuration that was loaded in the previous step.
- *    While this method is called synchronously from the Plugin's standpoint, it is
- *    executed async, in the background, by the Amplify framework.
+ * your plugin using the configuration that was loaded in the previous step.
+ * While this method is called synchronously from the Plugin's standpoint, it is
+ * executed async, in the background, by the Amplify framework.
  *
  * @param <E> The type of escape hatch provided by this plugin
  */
@@ -50,6 +51,7 @@ public interface Plugin<E> extends CategoryTypeable {
 
     /**
      * Gets a key which uniquely identifies the plugin instance.
+     *
      * @return the identifier that identifies the plugin implementation
      */
     @NonNull
@@ -59,11 +61,27 @@ public interface Plugin<E> extends CategoryTypeable {
      * Configure the plugin with customized configuration object. A
      * plugin may or may not require plugin configuration, so see
      * the documentation for details.
-     *
+     * <p>
      * This hook provides a good opportunity to instantiate resources.
      * Any long-lived initialization should take place in {@link #initialize(Context)}, instead.
+     *
      * @param pluginConfiguration plugin-specific configuration data
-     * @param context An Android Context
+     * @param context             An Android Context
+     * @throws AmplifyException an error is encountered during configuration.
+     */
+    default void configure(JSONObject pluginConfiguration, String userId, @NonNull Context context) throws AmplifyException {
+    }
+
+    /**
+     * Configure the plugin with customized configuration object. A
+     * plugin may or may not require plugin configuration, so see
+     * the documentation for details.
+     * <p>
+     * This hook provides a good opportunity to instantiate resources.
+     * Any long-lived initialization should take place in {@link #initialize(Context)}, instead.
+     *
+     * @param pluginConfiguration plugin-specific configuration data
+     * @param context             An Android Context
      * @throws AmplifyException an error is encountered during configuration.
      */
     void configure(JSONObject pluginConfiguration, @NonNull Context context) throws AmplifyException;
@@ -72,27 +90,29 @@ public interface Plugin<E> extends CategoryTypeable {
      * Configure the plugin with parsed AmplifyOutputs object. A
      * plugin may or may not require plugin configuration, so see
      * the documentation for details.
-     *
+     * <p>
      * This hook provides a good opportunity to instantiate resources.
      * Any long-lived initialization should take place in {@link #initialize(Context)}, instead.
+     *
      * @param configuration The AmplifyOutputs object
-     * @param context An Android Context
+     * @param context       An Android Context
      * @throws AmplifyException an error is encountered during configuration.
      */
     @InternalAmplifyApi
     default void configure(
-        @NonNull AmplifyOutputsData configuration,
-        @NonNull Context context
+            @NonNull AmplifyOutputsData configuration,
+            @NonNull Context context
     ) throws AmplifyException {
         throw new AmplifyException(
-            "This plugin version does not support the Gen2 configuration format",
-            "Use a newer version of this plugin that has support for the Amplify Gen2 configuration format"
+                "This plugin version does not support the Gen2 configuration format",
+                "Use a newer version of this plugin that has support for the Amplify Gen2 configuration format"
         );
     }
 
     /**
      * Initializes the plugin.
      * Perform any "heavy lifting" here.
+     *
      * @param context An Android Context
      * @throws AmplifyException On initialization failure
      */
@@ -101,6 +121,7 @@ public interface Plugin<E> extends CategoryTypeable {
 
     /**
      * Returns escape hatch for plugin to enable lower-level client use-cases.
+     *
      * @return the client used by category plugin; null, if there is no escape hatch
      */
     @Nullable
@@ -108,6 +129,7 @@ public interface Plugin<E> extends CategoryTypeable {
 
     /**
      * Returns the plugin version.
+     *
      * @return the plugin version
      */
     @NonNull

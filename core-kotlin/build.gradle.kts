@@ -23,6 +23,12 @@ group = properties["POM_GROUP"].toString()
 
 android {
     namespace = "com.amplifyframework.kotlin"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
@@ -41,6 +47,6 @@ dependencies {
 }
 
 android.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
     freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
 }

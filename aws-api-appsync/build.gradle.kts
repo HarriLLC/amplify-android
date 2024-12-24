@@ -25,6 +25,12 @@ group = properties["POM_GROUP"].toString()
 
 android {
     namespace = "com.amplifyframework.appsync"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
@@ -43,5 +49,5 @@ dependencies {
 }
 
 android.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }

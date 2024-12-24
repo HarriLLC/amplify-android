@@ -33,8 +33,7 @@ import com.amplifyframework.auth.cognito.actions.SignUpCognitoActions
 import com.amplifyframework.auth.cognito.actions.UserAuthSignInCognitoActions
 import com.amplifyframework.auth.cognito.actions.WebAuthnSignInCognitoActions
 import com.amplifyframework.auth.exceptions.InvalidStateException
-import com.amplifyframework.statemachine.Environment
-import com.amplifyframework.statemachine.StateMachine
+import com.amplifyframework.statemachine.StateMachineForAuth
 import com.amplifyframework.statemachine.StateMachineResolver
 import com.amplifyframework.statemachine.codegen.states.AuthState
 import com.amplifyframework.statemachine.codegen.states.AuthenticationState
@@ -56,10 +55,11 @@ import com.amplifyframework.statemachine.codegen.states.WebAuthnSignInState
 
 internal class AuthStateMachine(
     resolver: StateMachineResolver<AuthState>,
-    environment: Environment,
+    environment: AuthEnvironment,
     initialState: AuthState? = null
-) : StateMachine<AuthState, Environment>(resolver, environment, initialState = initialState) {
-    constructor(environment: Environment, initialState: AuthState? = null) : this(
+) : StateMachineForAuth(resolver, environment, initialState = initialState) {
+
+    constructor(environment: AuthEnvironment, initialState: AuthState? = null) : this(
         AuthState.Resolver(
             AuthenticationState.Resolver(
                 SignInState.Resolver(
@@ -94,7 +94,7 @@ internal class AuthStateMachine(
     )
 
     companion object {
-        fun logging(environment: Environment) = AuthStateMachine(
+        fun logging(environment: AuthEnvironment) = AuthStateMachine(
             AuthState.Resolver(
                 AuthenticationState.Resolver(
                     SignInState.Resolver(

@@ -147,6 +147,44 @@ public final class Amplify {
         configure(AmplifyConfiguration.fromConfigFile(context), context);
     }
 
+
+    /**
+     * Configure Amplify with AmplifyConfiguration object.
+     * @param configuration AmplifyConfiguration object for configuration via code
+     * @param context An Android Context
+     * @throws AmplifyException Indicates one of numerous possible failures to configure the Framework
+     */
+    public static void configure(@NonNull final AmplifyConfiguration configuration, final String userId, @NonNull Context context)
+            throws AmplifyException {
+        Objects.requireNonNull(configuration);
+        Objects.requireNonNull(context);
+
+        synchronized (CONFIGURATION_LOCK) {
+            if (CONFIGURATION_LOCK.get()) {
+                throw new AlreadyConfiguredException("Remove the duplicate call to `Amplify.configure()`.");
+            }
+
+            // Configure User-Agent utility
+            UserAgent.configure(configuration.getPlatformVersions());
+
+            if (configuration.isDevMenuEnabled()) {
+                DeveloperMenu.singletonInstance(context).enableDeveloperMenu();
+            }
+
+            for (Category<? extends Plugin<?>> category : CATEGORIES.values()) {
+                if (category.getPlugins().size() > 0) {
+                    CategoryConfiguration categoryConfiguration =
+                            configuration.forCategoryType(category.getCategoryType());
+                    category.configure(categoryConfiguration, context);
+                    beginInitialization(category, context);
+                }
+            }
+
+            CONFIGURATION_LOCK.set(true);
+        }
+    }
+
+
     /**
      * Configure Amplify with AmplifyConfiguration object.
      * @param configuration AmplifyConfiguration object for configuration via code

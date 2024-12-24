@@ -29,9 +29,10 @@ internal class SignOutEvent(
     override val time: Date? = null,
 ) : StateMachineEvent {
     sealed class EventType {
-        data class InvokeHostedUISignOut(val signOutData: SignOutData, val signedInData: SignedInData) : EventType()
+        data class InvokeHostedUISignOut(val userId: String, val signOutData: SignOutData, val signedInData: SignedInData) : EventType()
 
         data class SignOutLocally(
+            val userId: String,
             val signedInData: SignedInData?,
             val hostedUIErrorData: HostedUIErrorData? = null,
             val globalSignOutErrorData: GlobalSignOutErrorData? = null,
@@ -39,17 +40,20 @@ internal class SignOutEvent(
         ) : EventType()
 
         data class SignOutGlobally(
+            val userId: String,
             val signedInData: SignedInData,
             val hostedUIErrorData: HostedUIErrorData? = null
         ) : EventType()
 
         data class RevokeToken(
+            val userId: String,
             val signedInData: SignedInData,
             val hostedUIErrorData: HostedUIErrorData? = null,
             val globalSignOutErrorData: GlobalSignOutErrorData? = null
         ) : EventType()
 
         data class SignOutGloballyError(
+            val userId: String,
             val signedInData: SignedInData,
             val hostedUIErrorData: HostedUIErrorData? = null,
             val globalSignOutErrorData: GlobalSignOutErrorData? = null

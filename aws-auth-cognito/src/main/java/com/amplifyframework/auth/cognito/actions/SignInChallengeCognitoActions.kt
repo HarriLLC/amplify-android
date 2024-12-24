@@ -37,6 +37,7 @@ import com.amplifyframework.statemachine.codegen.events.SignInChallengeEvent
 internal object SignInChallengeCognitoActions : SignInChallengeActions {
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERNAME = "USERNAME"
+    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_PREFIX_USER_ATTRIBUTE = "userAttributes."
     override fun verifyChallengeAuthAction(
         answer: String,
@@ -54,6 +55,7 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             if (isMfaSetupSelectionChallenge(challenge)) {
                 val event = SignInChallengeHelper.evaluateNextStep(
                     username = username ?: "",
+                    email = metadata[USER_EMAIL].orEmpty(),
                     challengeNameType = ChallengeNameType.MfaSetup,
                     session = challenge.session,
                     challengeParameters = mapOf("MFAS_CAN_SETUP" to answer),
@@ -102,6 +104,7 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             response?.let {
                 SignInChallengeHelper.evaluateNextStep(
                     username = username ?: "",
+                    metadata[USER_EMAIL].orEmpty(),
                     challengeNameType = response.challengeName,
                     session = response.session,
                     challengeParameters = response.challengeParameters,

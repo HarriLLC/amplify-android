@@ -23,9 +23,9 @@ import com.amplifyframework.statemachine.codegen.events.DeleteUserEvent
 
 internal interface AuthorizationActions {
     fun configureAuthorizationAction(): Action
-    fun initializeFetchUnAuthSession(): Action
+    fun initializeFetchUnAuthSession(userId: String): Action
     fun initializeFetchAuthSession(signedInData: SignedInData): Action
-    fun initiateRefreshSessionAction(amplifyCredential: AmplifyCredential): Action
+    fun initiateRefreshSessionAction(userId: String, amplifyCredential: AmplifyCredential): Action
     fun initializeFederationToIdentityPool(federatedToken: FederatedToken, developerProvidedIdentityId: String?): Action
     fun initiateDeleteUser(event: DeleteUserEvent.EventType.DeleteUser): Action
     fun persistCredentials(amplifyCredential: AmplifyCredential): Action

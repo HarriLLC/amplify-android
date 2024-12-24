@@ -33,7 +33,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-class StateMachineTests {
+class StateMachineForAuthTests {
 
     private val timeout = 1.seconds
     private val mainThreadSurrogate = newSingleThreadContext("Main thread")

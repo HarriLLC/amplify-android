@@ -33,7 +33,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-class StateMachineListenerTests {
+class StateMachineForAuthListenerTests {
     private val mainThreadSurrogate = newSingleThreadContext("Main thread")
     private lateinit var stateMachine: CounterStateMachine
 

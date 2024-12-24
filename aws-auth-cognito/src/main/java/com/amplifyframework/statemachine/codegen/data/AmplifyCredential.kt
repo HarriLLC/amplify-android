@@ -36,7 +36,7 @@ internal sealed class AmplifyCredential {
 
     @Serializable
     @SerialName("empty")
-    object Empty : AmplifyCredential()
+    data class Empty(val userId: String?) : AmplifyCredential()
 
     @Serializable
     @SerialName("userPool")
@@ -82,9 +82,9 @@ internal sealed class AmplifyCredential {
 internal data class FederatedToken(val token: String, val providerName: String) {
     override fun toString(): String {
         return "FederatedToken(" +
-            "token = ${token.substring(0..4)}***, " +
-            "providerName = $providerName" +
-            ")"
+                "token = ${token.substring(0..4)}***, " +
+                "providerName = $providerName" +
+                ")"
     }
 }
 
@@ -104,10 +104,10 @@ internal data class CognitoUserPoolTokens(
 ) {
     override fun toString(): String {
         return "CognitoUserPoolTokens(" +
-            "idToken = ${idToken?.substring(0..4)}***, " +
-            "accessToken = ${accessToken?.substring(0..4)}***, " +
-            "refreshToken = ${refreshToken?.substring(0..4)}***" +
-            ")"
+                "idToken = ${idToken?.substring(0..4)}***, " +
+                "accessToken = ${accessToken?.substring(0..4)}***, " +
+                "refreshToken = ${refreshToken?.substring(0..4)}***" +
+                ")"
     }
 
     override fun equals(other: Any?): Boolean {
@@ -141,16 +141,16 @@ internal data class AWSCredentials(
 
     override fun toString(): String {
         return "AWSCredentials(" +
-            "accessKeyId = ${accessKeyId?.substring(0..4)}***, " +
-            "secretAccessKey = ${secretAccessKey?.substring(0..4)}***, " +
-            "sessionToken = ${sessionToken?.substring(0..4)}***, " +
-            "expiration = $expiration" +
-            ")"
+                "accessKeyId = ${accessKeyId?.substring(0..4)}***, " +
+                "secretAccessKey = ${secretAccessKey?.substring(0..4)}***, " +
+                "sessionToken = ${sessionToken?.substring(0..4)}***, " +
+                "expiration = $expiration" +
+                ")"
     }
 }
 
 internal sealed class CredentialType {
-    object Amplify : CredentialType()
+    data class Amplify(val userId: String?) : CredentialType()
     data class Device(val username: String) : CredentialType()
     object ASF : CredentialType()
 }

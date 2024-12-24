@@ -17,6 +17,7 @@ package com.amplifyframework.auth;
 
 import android.app.Activity;
 import android.content.Intent;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -57,11 +58,12 @@ public interface AuthCategoryBehavior {
      * Creates a new user account with the specified username and password.
      * Can also pass in user attributes to associate with the user through
      * the options object.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param password The user's password
-     * @param options Advanced options such as additional attributes of the user or validation data
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param password  The user's password
+     * @param options   Advanced options such as additional attributes of the user or validation data
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void signUp(
             @NonNull String username,
@@ -73,11 +75,12 @@ public interface AuthCategoryBehavior {
     /**
      * If you have attribute confirmation enabled, this will allow the user
      * to enter the confirmation code they received to activate their account.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     *
+     * @param username         A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
      * @param confirmationCode The confirmation code the user received
-     * @param options Advanced options such as a map of auth information for custom auth
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options          Advanced options such as a map of auth information for custom auth
+     * @param onSuccess        Success callback
+     * @param onError          Error callback
      */
     void confirmSignUp(
             @NonNull String username,
@@ -89,10 +92,11 @@ public interface AuthCategoryBehavior {
     /**
      * If you have attribute confirmation enabled, this will allow the user
      * to enter the confirmation code they received to activate their account.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     *
+     * @param username         A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
      * @param confirmationCode The confirmation code the user received
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess        Success callback
+     * @param onError          Error callback
      */
     void confirmSignUp(
             @NonNull String username,
@@ -103,10 +107,11 @@ public interface AuthCategoryBehavior {
     /**
      * If the user's code expires or they just missed it, this method can
      * be used to send them a new one.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param options Advanced options such as a map of auth information for custom auth
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param options   Advanced options such as a map of auth information for custom auth
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void resendSignUpCode(
             @NonNull String username,
@@ -117,9 +122,10 @@ public interface AuthCategoryBehavior {
     /**
      * If the user's code expires or they just missed it, this method can
      * be used to send them a new one.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void resendSignUpCode(
             @NonNull String username,
@@ -129,11 +135,12 @@ public interface AuthCategoryBehavior {
     /**
      * Basic authentication to the app with a username and password or, if custom auth is setup,
      * you can send null for those and the necessary authentication details in the options object.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param password User's password for normal signup, null if custom auth or passwordless configurations are setup
-     * @param options Advanced options such as a map of auth information for custom auth
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param password  User's password for normal signup, null if custom auth or passwordless configurations are setup
+     * @param options   Advanced options such as a map of auth information for custom auth
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void signIn(
             @Nullable String username,
@@ -144,10 +151,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Basic authentication to the app with a username and password.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param password User's password
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param password  User's password
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void signIn(
             @Nullable String username,
@@ -157,10 +165,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Submit the confirmation code received as part of multi-factor Authentication during sign in.
+     *
      * @param challengeResponse The code received as part of the multi-factor authentication process
-     * @param options Advanced options such as a map of auth information for custom auth
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options           Advanced options such as a map of auth information for custom auth
+     * @param onSuccess         Success callback
+     * @param onError           Error callback
      */
     void confirmSignIn(
             @NonNull String challengeResponse,
@@ -170,9 +179,10 @@ public interface AuthCategoryBehavior {
 
     /**
      * Submit the confirmation code received as part of multi-factor Authentication during sign in.
+     *
      * @param challengeResponse The code received as part of the multi-factor authentication process
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess         Success callback
+     * @param onError           Error callback
      */
     void confirmSignIn(
             @NonNull String challengeResponse,
@@ -183,10 +193,11 @@ public interface AuthCategoryBehavior {
      * Launch the specified auth provider's web UI sign in experience. You should also put the
      * {@link #handleWebUISignInResponse(Intent)} method in your activity's onNewIntent method to
      * capture the response which comes back from the UI flow.
-     * @param provider The auth provider you want to launch the web ui for (e.g. Facebook, Google, etc.)
+     *
+     * @param provider        The auth provider you want to launch the web ui for (e.g. Facebook, Google, etc.)
      * @param callingActivity The activity in your app you are calling this from
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess       Success callback
+     * @param onError         Error callback
      */
     void signInWithSocialWebUI(
             @NonNull AuthProvider provider,
@@ -198,11 +209,12 @@ public interface AuthCategoryBehavior {
      * Launch the specified auth provider's web UI sign in experience. You should also put the
      * {@link #handleWebUISignInResponse(Intent)} method in your activity's onNewIntent method to
      * capture the response which comes back from the UI flow.
-     * @param provider The auth provider you want to launch the web ui for (e.g. Facebook, Google, etc.)
+     *
+     * @param provider        The auth provider you want to launch the web ui for (e.g. Facebook, Google, etc.)
      * @param callingActivity The activity in your app you are calling this from
-     * @param options Advanced options for signing in with an auth provider's hosted web ui.
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options         Advanced options for signing in with an auth provider's hosted web ui.
+     * @param onSuccess       Success callback
+     * @param onError         Error callback
      */
     void signInWithSocialWebUI(
             @NonNull AuthProvider provider,
@@ -214,9 +226,10 @@ public interface AuthCategoryBehavior {
     /**
      * Launch a hosted web sign in UI flow. You should also put the {@link #handleWebUISignInResponse(Intent)} method in
      * your activity's onNewIntent method to capture the response which comes back from the UI flow.
+     *
      * @param callingActivity The activity in your app you are calling this from
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess       Success callback
+     * @param onError         Error callback
      */
     void signInWithWebUI(
             @NonNull Activity callingActivity,
@@ -226,10 +239,11 @@ public interface AuthCategoryBehavior {
     /**
      * Launch a hosted web sign in UI flow. You should also put the {@link #handleWebUISignInResponse(Intent)}
      * method in your activity's onNewIntent method to capture the response which comes back from the UI flow.
+     *
      * @param callingActivity The activity in your app you are calling this from
-     * @param options Advanced options for signing in with a hosted web ui.
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options         Advanced options for signing in with a hosted web ui.
+     * @param onSuccess       Success callback
+     * @param onError         Error callback
      */
     void signInWithWebUI(
             @NonNull Activity callingActivity,
@@ -239,6 +253,7 @@ public interface AuthCategoryBehavior {
 
     /**
      * Handles the response which comes back from {@link #signInWithWebUI(Activity, Consumer, Consumer)}.
+     *
      * @param intent The app activity's intent
      */
     void handleWebUISignInResponse(Intent intent);
@@ -249,8 +264,25 @@ public interface AuthCategoryBehavior {
      * to that plugin which contains the various security tokens and other identifying information if you want to
      * manually use them outside the plugin. Within Amplify this should not be needed as the other categories will
      * automatically work as long as you are signed in.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
+     */
+    void fetchAuthSession(
+            @NonNull String username,
+            @NonNull String userId,
+            @NonNull Consumer<AuthSession> onSuccess,
+            @NonNull Consumer<AuthException> onError);
+
+    /**
+     * Retrieve the user's current session information - by default just whether they are signed out or in.
+     * Depending on how a plugin implements this, the resulting AuthSession can also be cast to a type specific
+     * to that plugin which contains the various security tokens and other identifying information if you want to
+     * manually use them outside the plugin. Within Amplify this should not be needed as the other categories will
+     * automatically work as long as you are signed in.
+     *
+     * @param onSuccess Success callback
+     * @param onError   Error callback
      */
     void fetchAuthSession(
             @NonNull Consumer<AuthSession> onSuccess,
@@ -262,9 +294,10 @@ public interface AuthCategoryBehavior {
      * to that plugin which contains the various security tokens and other identifying information if you want to
      * manually use them outside the plugin. Within Amplify this should not be needed as the other categories will
      * automatically work as long as you are signed in.
-     * @param options Advanced options for force refresh session.
+     *
+     * @param options   Advanced options for force refresh session.
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void fetchAuthSession(
             @NonNull AuthFetchSessionOptions options,
@@ -273,8 +306,9 @@ public interface AuthCategoryBehavior {
 
     /**
      * Remember the user device that is currently being used.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void rememberDevice(
             @NonNull Action onSuccess,
@@ -283,8 +317,9 @@ public interface AuthCategoryBehavior {
     /**
      * Forget the user device that is currently being used from the list
      * of remembered devices.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void forgetDevice(
             @NonNull Action onSuccess,
@@ -292,9 +327,10 @@ public interface AuthCategoryBehavior {
 
     /**
      * Forget a specific user device from the list of remembered devices.
-     * @param device Auth device to forget
+     *
+     * @param device    Auth device to forget
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void forgetDevice(
             @NonNull AuthDevice device,
@@ -303,8 +339,9 @@ public interface AuthCategoryBehavior {
 
     /**
      * Obtain a list of devices that are being tracked by the category.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void fetchDevices(
             @NonNull Consumer<List<AuthDevice>> onSuccess,
@@ -312,10 +349,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Trigger password recovery for the given username.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param options Advanced options such as a map of auth information for custom auth
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param options   Advanced options such as a map of auth information for custom auth
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void resetPassword(
             @NonNull String username,
@@ -325,9 +363,10 @@ public interface AuthCategoryBehavior {
 
     /**
      * Trigger password recovery for the given username.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     *
+     * @param username  A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void resetPassword(
             @NonNull String username,
@@ -336,12 +375,13 @@ public interface AuthCategoryBehavior {
 
     /**
      * Complete password recovery process by inputting user's desired new password and confirmation code.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param newPassword The user's desired new password
+     *
+     * @param username         A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param newPassword      The user's desired new password
      * @param confirmationCode The confirmation code the user received after starting the forgotPassword process
-     * @param options Advanced options such as a map of auth information for custom auth
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options          Advanced options such as a map of auth information for custom auth
+     * @param onSuccess        Success callback
+     * @param onError          Error callback
      */
     void confirmResetPassword(
             @NonNull String username,
@@ -353,11 +393,12 @@ public interface AuthCategoryBehavior {
 
     /**
      * Complete password recovery process by inputting user's desired new password and confirmation code.
-     * @param username A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
-     * @param newPassword The user's desired new password
+     *
+     * @param username         A login identifier e.g. `superdog22`; or an email/phone number, depending on configuration
+     * @param newPassword      The user's desired new password
      * @param confirmationCode The confirmation code the user received after starting the forgotPassword process
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess        Success callback
+     * @param onError          Error callback
      */
     void confirmResetPassword(
             @NonNull String username,
@@ -368,10 +409,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Update the password of an existing user - must be signed in to perform this action.
+     *
      * @param oldPassword The user's existing password
      * @param newPassword The new password desired on the user account
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess   Success callback
+     * @param onError     Error callback
      */
     void updatePassword(
             @NonNull String oldPassword,
@@ -382,8 +424,9 @@ public interface AuthCategoryBehavior {
 
     /**
      * Fetch user attributes.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void fetchUserAttributes(
             @NonNull Consumer<List<AuthUserAttribute>> onSuccess,
@@ -392,10 +435,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Update a single user attribute.
+     *
      * @param attribute Attribute to be updated
-     * @param options Advanced options such as a map of auth information for custom auth
+     * @param options   Advanced options such as a map of auth information for custom auth
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void updateUserAttribute(
             @NonNull AuthUserAttribute attribute,
@@ -406,9 +450,10 @@ public interface AuthCategoryBehavior {
 
     /**
      * Update a single user attribute.
+     *
      * @param attribute Attribute to be updated
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void updateUserAttribute(
             @NonNull AuthUserAttribute attribute,
@@ -417,10 +462,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Update multiple user attributes.
+     *
      * @param attributes Attributes to be updated
-     * @param options Advanced options such as a map of auth information for custom auth
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options    Advanced options such as a map of auth information for custom auth
+     * @param onSuccess  Success callback
+     * @param onError    Error callback
      */
     void updateUserAttributes(
             @NonNull List<AuthUserAttribute> attributes,
@@ -431,9 +477,10 @@ public interface AuthCategoryBehavior {
 
     /**
      * Update multiple user attributes.
+     *
      * @param attributes Attributes to be updated
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess  Success callback
+     * @param onError    Error callback
      */
     void updateUserAttributes(
             @NonNull List<AuthUserAttribute> attributes,
@@ -444,10 +491,11 @@ public interface AuthCategoryBehavior {
     /**
      * If the user's confirmation code expires or they just missed it, this method
      * can be used to send them a new one.
+     *
      * @param attributeKey Key of attribute that user wants to operate on
-     * @param options Advanced options such as a map of auth information for custom auth
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options      Advanced options such as a map of auth information for custom auth
+     * @param onSuccess    Success callback
+     * @param onError      Error callback
      */
     void resendUserAttributeConfirmationCode(
             @NonNull AuthUserAttributeKey attributeKey,
@@ -459,9 +507,10 @@ public interface AuthCategoryBehavior {
     /**
      * If the user's confirmation code expires or they just missed it, this method
      * can be used to send them a new one.
+     *
      * @param attributeKey Key of attribute that user wants to operate on
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess    Success callback
+     * @param onError      Error callback
      */
     void resendUserAttributeConfirmationCode(
             @NonNull AuthUserAttributeKey attributeKey,
@@ -471,10 +520,11 @@ public interface AuthCategoryBehavior {
 
     /**
      * Use attribute key and confirmation code to confirm user attribute.
-     * @param attributeKey Key of attribute that user wants to operate on
+     *
+     * @param attributeKey     Key of attribute that user wants to operate on
      * @param confirmationCode The confirmation code the user received after starting the user attribute operation
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess        Success callback
+     * @param onError          Error callback
      */
     void confirmUserAttribute(
             @NonNull AuthUserAttributeKey attributeKey,
@@ -485,8 +535,9 @@ public interface AuthCategoryBehavior {
 
     /**
      * Gets the currently logged in User.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void getCurrentUser(
             @NonNull Consumer<AuthUser> onSuccess,
@@ -495,24 +546,31 @@ public interface AuthCategoryBehavior {
 
     /**
      * Sign out of the current device.
+     *
      * @param onComplete Complete callback
      */
-    void signOut(@NonNull Consumer<AuthSignOutResult> onComplete);
+    void signOut(@NonNull String username, @NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete);
 
     /**
      * Sign out with advanced options.
-     * @param options Advanced options for sign out (e.g. whether to sign out of all devices globally)
+     *
+     * @param username
+     * @param userId
+     * @param options    Advanced options for sign out (e.g. whether to sign out of all devices globally)
      * @param onComplete Complete callback
      */
     void signOut(
+            @NonNull String username,
+            @NonNull String userId,
             @NonNull AuthSignOutOptions options,
             @NonNull Consumer<AuthSignOutResult> onComplete
     );
 
     /**
      * Delete the account of the currently signed in user.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void deleteUser(
             @NonNull Action onSuccess,
@@ -520,59 +578,64 @@ public interface AuthCategoryBehavior {
 
     /**
      * Setup TOTP for the currently signed in user.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void setUpTOTP(
-        @NonNull Consumer<TOTPSetupDetails> onSuccess,
-        @NonNull Consumer<AuthException> onError);
+            @NonNull Consumer<TOTPSetupDetails> onSuccess,
+            @NonNull Consumer<AuthException> onError);
 
     /**
      * Verify TOTP setup for the currently signed in user.
-     * @param code TOTP code to verify TOTP setup
+     *
+     * @param code      TOTP code to verify TOTP setup
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void verifyTOTPSetup(
-        @NonNull String code,
-        @NonNull Action onSuccess,
-        @NonNull Consumer<AuthException> onError
+            @NonNull String code,
+            @NonNull Action onSuccess,
+            @NonNull Consumer<AuthException> onError
     );
 
     /**
      * Verify TOTP setup for the currently signed in user.
-     * @param code TOTP code to verify TOTP setup
-     * @param options additional options to verify totp setup
+     *
+     * @param code      TOTP code to verify TOTP setup
+     * @param options   additional options to verify totp setup
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void verifyTOTPSetup(
-        @NonNull String code,
-        @NonNull AuthVerifyTOTPSetupOptions options,
-        @NonNull Action onSuccess,
-        @NonNull Consumer<AuthException> onError
+            @NonNull String code,
+            @NonNull AuthVerifyTOTPSetupOptions options,
+            @NonNull Action onSuccess,
+            @NonNull Consumer<AuthException> onError
     );
 
     /**
      * Create and register a passkey on this device, enabling passwordless sign in using passkeys.
      * The user must be signed in to call this API.
+     *
      * @param callingActivity The current Activity instance, used for launching the CredentialManager UI
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess       Success callback
+     * @param onError         Error callback
      */
     void associateWebAuthnCredential(
-        @NonNull Activity callingActivity,
-        @NonNull Action onSuccess,
-        @NonNull Consumer<AuthException> onError
+            @NonNull Activity callingActivity,
+            @NonNull Action onSuccess,
+            @NonNull Consumer<AuthException> onError
     );
 
     /**
      * Create and register a passkey on this device, enabling passwordless sign in using passkeys.
      * The user must be signed in to call this API.
+     *
      * @param callingActivity The current Activity instance, used for launching the CredentialManager UI
-     * @param options Advanced options for associating credentials
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options         Advanced options for associating credentials
+     * @param onSuccess       Success callback
+     * @param onError         Error callback
      */
     void associateWebAuthnCredential(
             @NonNull Activity callingActivity,
@@ -584,20 +647,22 @@ public interface AuthCategoryBehavior {
     /**
      * Retrieve a list of WebAuthn credentials that are associated with the user's account.
      * The user must be signed in to call this API.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void listWebAuthnCredentials(
-        @NonNull Consumer<AuthListWebAuthnCredentialsResult> onSuccess,
-        @NonNull Consumer<AuthException> onError
+            @NonNull Consumer<AuthListWebAuthnCredentialsResult> onSuccess,
+            @NonNull Consumer<AuthException> onError
     );
 
     /**
      * Retrieve a list of WebAuthn credentials that are associated with the user's account.
      * The user must be signed in to call this API.
-     * @param options Advanced options for listing credentials
+     *
+     * @param options   Advanced options for listing credentials
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void listWebAuthnCredentials(
             @NonNull AuthListWebAuthnCredentialsOptions options,
@@ -607,22 +672,24 @@ public interface AuthCategoryBehavior {
 
     /**
      * Delete the credential matching the given identifier.
+     *
      * @param credentialId The identifier for the credential to delete
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onSuccess    Success callback
+     * @param onError      Error callback
      */
     void deleteWebAuthnCredential(
-        @NonNull String credentialId,
-        @NonNull Action onSuccess,
-        @NonNull Consumer<AuthException> onError
+            @NonNull String credentialId,
+            @NonNull Action onSuccess,
+            @NonNull Consumer<AuthException> onError
     );
 
     /**
      * Delete the credential matching the given identifier.
+     *
      * @param credentialId The identifier for the credential to delete
-     * @param options Advanced options for deleting credentials
-     * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param options      Advanced options for deleting credentials
+     * @param onSuccess    Success callback
+     * @param onError      Error callback
      */
     void deleteWebAuthnCredential(
             @NonNull String credentialId,
@@ -633,8 +700,9 @@ public interface AuthCategoryBehavior {
 
     /**
      * Automatically sign in the user.
+     *
      * @param onSuccess Success callback
-     * @param onError Error callback
+     * @param onError   Error callback
      */
     void autoSignIn(
             @NonNull Consumer<AuthSignInResult> onSuccess,

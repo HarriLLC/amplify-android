@@ -32,6 +32,7 @@ import com.amplifyframework.statemachine.codegen.events.SignInEvent
 internal object SignInCustomCognitoActions : CustomSignInActions {
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERNAME = "USERNAME"
+    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_DEVICE_KEY = "DEVICE_KEY"
     private const val KEY_USERID_FOR_SRP = "USER_ID_FOR_SRP"
     override fun initiateCustomSignInAuthAction(event: CustomSignInEvent.EventType.InitiateCustomSignIn): Action =
@@ -73,6 +74,7 @@ internal object SignInCustomCognitoActions : CustomSignInActions {
                     )
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
+                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = initiateAuthResponse.challengeName,
                         session = initiateAuthResponse.session,
                         challengeParameters = initiateAuthResponse.challengeParameters,

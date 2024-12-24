@@ -281,7 +281,7 @@ class KotlinAuthFacade(private val delegate: Delegate = Amplify.Auth) : Auth {
     }
 
     override suspend fun signOut(options: AuthSignOutOptions): AuthSignOutResult = suspendCoroutine { continuation ->
-        delegate.signOut(options) { continuation.resume(it) }
+        delegate.signOut("","", options) { continuation.resume(it) }
     }
 
     override suspend fun deleteUser() = suspendCoroutine { continuation ->

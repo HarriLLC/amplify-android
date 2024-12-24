@@ -240,6 +240,16 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         delegate.handleWebUISignInResponse(intent)
     }
 
+    suspend fun fetchAuthSession(username: String, userId: String): AuthSession {
+        return suspendCoroutine { continuation ->
+            delegate.fetchAuthSession(
+                username,
+                userId,
+                { continuation.resume(it) },
+                { continuation.resumeWithException(it) }
+            )
+        }
+    }
     suspend fun fetchAuthSession(): AuthSession {
         return suspendCoroutine { continuation ->
             delegate.fetchAuthSession(
@@ -477,15 +487,15 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         }
     }
 
-    suspend fun signOut(): AuthSignOutResult {
+    suspend fun signOut(username: String, userId: String): AuthSignOutResult {
         return suspendCoroutine { continuation ->
-            delegate.signOut { continuation.resume(it) }
+            delegate.signOut(username, userId) { continuation.resume(it) }
         }
     }
 
-    suspend fun signOut(options: AuthSignOutOptions): AuthSignOutResult {
+    suspend fun signOut(username: String, userId: String, options: AuthSignOutOptions): AuthSignOutResult {
         return suspendCoroutine { continuation ->
-            delegate.signOut(options) { continuation.resume(it) }
+            delegate.signOut(username, userId, options) { continuation.resume(it) }
         }
     }
 
@@ -514,9 +524,11 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         }
     }
 
-    suspend fun clearFederationToIdentityPool() {
+    suspend fun clearFederationToIdentityPool(username: String, userId: String) {
         return suspendCoroutine { continuation ->
             delegate.clearFederationToIdentityPool(
+                username,
+                userId,
                 { continuation.resume(Unit) },
                 { continuation.resumeWithException(it) }
             )

@@ -30,6 +30,7 @@ import com.amplifyframework.statemachine.codegen.events.AuthEvent
 import com.amplifyframework.statemachine.codegen.events.AuthenticationEvent
 import com.amplifyframework.statemachine.codegen.events.SignInEvent
 import com.amplifyframework.statemachine.codegen.events.SignOutEvent
+import kotlinx.serialization.StringFormat
 
 internal object AuthenticationCognitoActions : AuthenticationActions {
     override fun configureAuthenticationAction(event: AuthenticationEvent.EventType.Configure) =
@@ -167,6 +168,7 @@ internal object AuthenticationCognitoActions : AuthenticationActions {
         }
 
     override fun initiateSignOutAction(
+        userId: String,
         event: AuthenticationEvent.EventType.SignOutRequested,
         signedInData: SignedInData?
     ) = Action<AuthEnvironment>("InitSignOut") { id, dispatcher ->
@@ -174,7 +176,7 @@ internal object AuthenticationCognitoActions : AuthenticationActions {
 
         val evt = when {
             signedInData != null && signedInData.signInMethod is SignInMethod.HostedUI -> {
-                SignOutEvent(SignOutEvent.EventType.InvokeHostedUISignOut(event.signOutData, signedInData))
+                SignOutEvent(SignOutEvent.EventType.InvokeHostedUISignOut(userId, event.signOutData, signedInData))
             }
             signedInData != null &&
                 signedInData.signInMethod == SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.UNKNOWN) &&
@@ -184,15 +186,15 @@ internal object AuthenticationCognitoActions : AuthenticationActions {
                 assume that hosted ui sign in may have been used if hostedUIClient is configured. This only happens if
                 a customers configuration contained a valid Oauth section, complete with signOutRedirectURI.
                  */
-                SignOutEvent(SignOutEvent.EventType.InvokeHostedUISignOut(event.signOutData, signedInData))
+                SignOutEvent(SignOutEvent.EventType.InvokeHostedUISignOut(userId, event.signOutData, signedInData))
             }
             signedInData != null && event.signOutData.globalSignOut -> {
-                SignOutEvent(SignOutEvent.EventType.SignOutGlobally(signedInData))
+                SignOutEvent(SignOutEvent.EventType.SignOutGlobally(userId, signedInData))
             }
             signedInData != null && !event.signOutData.globalSignOut -> {
-                SignOutEvent(SignOutEvent.EventType.RevokeToken(signedInData))
+                SignOutEvent(SignOutEvent.EventType.RevokeToken(userId, signedInData))
             }
-            else -> SignOutEvent(SignOutEvent.EventType.SignOutLocally(signedInData))
+            else -> SignOutEvent(SignOutEvent.EventType.SignOutLocally(userId, signedInData))
         }
         logger.verbose("$id Sending event ${evt.type}")
         dispatcher.send(evt)

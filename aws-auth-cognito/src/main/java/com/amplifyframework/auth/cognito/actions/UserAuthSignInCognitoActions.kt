@@ -35,6 +35,7 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
     private const val KEY_DEVICE_KEY = "DEVICE_KEY"
     private const val KEY_USERID_FOR_SRP = "USER_ID_FOR_SRP"
     private const val KEY_PREFERRED_CHALLENGE = "PREFERRED_CHALLENGE"
+    private const val USER_EMAIL = "USER_EMAIL"
 
     override fun initiateUserAuthSignIn(event: SignInEvent.EventType.InitiateUserAuth): Action =
         Action<AuthEnvironment>("InitUserAuth") { id, dispatcher ->
@@ -84,6 +85,7 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
 
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
+                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = ChallengeNameType.SelectChallenge,
                         session = resolvedSession,
                         availableChallenges = listOfChallenges,
@@ -105,6 +107,7 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
 
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
+                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = initiateAuthResponse.challengeName,
                         session = resolvedSession,
                         challengeParameters = initiateAuthResponse.challengeParameters,

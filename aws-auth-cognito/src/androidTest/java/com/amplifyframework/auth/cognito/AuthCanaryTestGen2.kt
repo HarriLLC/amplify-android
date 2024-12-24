@@ -330,18 +330,20 @@ class AuthCanaryTestGen2 {
     fun signOut() {
         signInUser(username, password)
         val latch = CountDownLatch(1)
-        Amplify.Auth.signOut { signOutResult ->
+        Amplify.Auth.signOut(username, "") { signOutResult ->
             when (signOutResult) {
                 is AWSCognitoAuthSignOutResult.CompleteSignOut -> {
                     // Sign Out completed fully and without errors.
                     latch.countDown()
                 }
+
                 is AWSCognitoAuthSignOutResult.PartialSignOut -> {
                     // Sign Out completed with some errors. User is signed out of the device.
                     signOutResult.hostedUIError?.let { fail("HostedUIError while signing out: $it") }
                     signOutResult.globalSignOutError?.let { fail("GlobalSignOutError while signing out: $it") }
                     signOutResult.revokeTokenError?.let { fail("RevokeTokenError: $it") }
                 }
+
                 is AWSCognitoAuthSignOutResult.FailedSignOut -> {
                     // Sign Out failed with an exception, leaving the user signed in.
                     fail("Sign out failed: ${signOutResult.exception}")
@@ -358,18 +360,20 @@ class AuthCanaryTestGen2 {
         val options = AuthSignOutOptions.builder()
             .globalSignOut(true)
             .build()
-        Amplify.Auth.signOut(options) { signOutResult ->
+        Amplify.Auth.signOut(username, "", options) { signOutResult ->
             when (signOutResult) {
                 is AWSCognitoAuthSignOutResult.CompleteSignOut -> {
                     // Sign Out completed fully and without errors.
                     latch.countDown()
                 }
+
                 is AWSCognitoAuthSignOutResult.PartialSignOut -> {
                     // Sign Out completed with some errors. User is signed out of the device.
                     signOutResult.hostedUIError?.let { fail("HostedUIError while signing out: $it") }
                     signOutResult.globalSignOutError?.let { fail("GlobalSignOutError while signing out: $it") }
                     signOutResult.revokeTokenError?.let { fail("RevokeTokenError: $it") }
                 }
+
                 is AWSCognitoAuthSignOutResult.FailedSignOut -> {
                     // Sign Out failed with an exception, leaving the user signed in.
                     fail("Sign out failed: ${signOutResult.exception}")
@@ -424,7 +428,7 @@ class AuthCanaryTestGen2 {
 
     private fun signOutUser() {
         val latch = CountDownLatch(1)
-        auth.signOut { latch.countDown() }
+        auth.signOut("", "") { latch.countDown() }
         latch.await(TIMEOUT_S, TimeUnit.SECONDS)
     }
 

@@ -23,6 +23,12 @@ apply(from = rootProject.file("configuration/checkstyle.gradle"))
 
 android {
     namespace = "com.amplifyframework.testutils"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {

@@ -34,6 +34,7 @@ import com.amplifyframework.statemachine.codegen.events.SignInEvent
 
 internal object MigrateAuthCognitoActions : MigrateAuthActions {
     private const val KEY_USERNAME = "USERNAME"
+    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_PASSWORD = "PASSWORD"
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERID_FOR_SRP = "USER_ID_FOR_SRP"
@@ -72,11 +73,12 @@ internal object MigrateAuthCognitoActions : MigrateAuthActions {
                     response?.let {
                         SignInChallengeHelper.evaluateNextStep(
                             username = event.username,
+                            email = event.metadata[USER_EMAIL].orEmpty(),
                             challengeNameType = response.challengeName,
                             session = response.session,
                             challengeParameters = response.challengeParameters,
                             authenticationResult = response.authenticationResult,
-                            signInMethod = SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_AUTH)
+                            signInMethod = SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_AUTH),
                         )
                     } ?: throw ServiceException("Sign in failed", AmplifyException.TODO_RECOVERY_SUGGESTION)
                 } else {
@@ -107,6 +109,7 @@ internal object MigrateAuthCognitoActions : MigrateAuthActions {
                         }
                         SignInChallengeHelper.evaluateNextStep(
                             username = username,
+                            email = event.metadata[USER_EMAIL].orEmpty(),
                             challengeNameType = response.challengeName,
                             session = response.session,
                             challengeParameters = response.challengeParameters,

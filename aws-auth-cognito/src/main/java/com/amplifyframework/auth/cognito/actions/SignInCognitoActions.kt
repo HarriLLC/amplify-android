@@ -45,6 +45,7 @@ import com.amplifyframework.statemachine.codegen.events.WebAuthnEvent
 internal object SignInCognitoActions : SignInActions {
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERNAME = "USERNAME"
+    private const val USER_EMAIL = "USER_EMAIL"
 
     override fun startSRPAuthAction(event: SignInEvent.EventType.InitiateSignInWithSRP) =
         Action<AuthEnvironment>("StartSRPAuth") { id, dispatcher ->
@@ -59,7 +60,7 @@ internal object SignInCognitoActions : SignInActions {
                 )
             )
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.username)
         }
 
     override fun startCustomAuthAction(event: SignInEvent.EventType.InitiateSignInWithCustom) =
@@ -69,7 +70,7 @@ internal object SignInCognitoActions : SignInActions {
                 CustomSignInEvent.EventType.InitiateCustomSignIn(event.username, event.metadata)
             )
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.username)
         }
 
     override fun startMigrationAuthAction(event: SignInEvent.EventType.InitiateMigrateAuth) =
@@ -84,7 +85,7 @@ internal object SignInCognitoActions : SignInActions {
                 )
             )
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.username)
         }
 
     override fun startCustomAuthWithSRPAction(event: SignInEvent.EventType.InitiateCustomSignInWithSRP): Action =
@@ -92,7 +93,7 @@ internal object SignInCognitoActions : SignInActions {
             logger.verbose("$id Starting execution")
             val evt = SRPEvent(SRPEvent.EventType.InitiateSRPWithCustom(event.username, event.password, event.metadata))
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.username)
         }
 
     override fun startDeviceSRPAuthAction(event: SignInEvent.EventType.InitiateSignInWithDeviceSRP) =
@@ -102,7 +103,7 @@ internal object SignInCognitoActions : SignInActions {
                 DeviceSRPSignInEvent.EventType.RespondDeviceSRPChallenge(event.username, event.metadata)
             )
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.username)
         }
 
     override fun initResolveChallenge(event: SignInEvent.EventType.ReceivedChallenge) =
@@ -152,7 +153,7 @@ internal object SignInCognitoActions : SignInActions {
                 SignInEvent(SignInEvent.EventType.ThrowError(e))
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.signedInData.email.orEmpty())
         }
 
     override fun startHostedUIAuthAction(event: SignInEvent.EventType.InitiateHostedUISignIn) =
@@ -190,7 +191,7 @@ internal object SignInCognitoActions : SignInActions {
                 WebAuthnEvent(WebAuthnEvent.EventType.AssertCredentialOptions(signInContext))
             }
             logger.verbose("$id sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, signInContext.username)
         }
 
     override fun autoSignInAction(event: SignInEvent.EventType.InitiateAutoSignIn): Action =
@@ -225,6 +226,7 @@ internal object SignInCognitoActions : SignInActions {
                 if (response != null) {
                     SignInChallengeHelper.evaluateNextStep(
                         username = username,
+                        email = event.signInData.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = response.challengeName,
                         session = response.session,
                         challengeParameters = response.challengeParameters,
@@ -240,11 +242,11 @@ internal object SignInCognitoActions : SignInActions {
             } catch (e: Exception) {
                 val signInError = SignInEvent(SignInEvent.EventType.ThrowError(e))
                 logger.verbose("$id Sending event ${signInError.type}")
-                dispatcher.send(signInError)
+                dispatcher.send(signInError, event.signInData.username)
 
                 AuthenticationEvent(AuthenticationEvent.EventType.CancelSignIn())
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            dispatcher.send(evt, event.signInData.username)
         }
 }

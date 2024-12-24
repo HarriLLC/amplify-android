@@ -131,7 +131,8 @@ class AuthValidationTest {
         configuration = configuration,
         authEnvironment = environment,
         authStateMachine = stateMachine,
-        logger = logger
+        logger = logger,
+        userId = userId
     )
 
     private val mainThreadSurrogate = newSingleThreadContext("Main thread")
@@ -441,7 +442,7 @@ class AuthValidationTest {
     }
 
     private fun signOut() = blockForResult { complete ->
-        plugin.signOut(complete)
+        plugin.signOut("","",complete)
     }
 
     private fun signInHostedUi(): AuthSignInResult {
@@ -458,7 +459,7 @@ class AuthValidationTest {
     }
 
     private fun signOutHostedUi() = blockForResult { complete ->
-        plugin.signOut(complete)
+        plugin.signOut("","",complete)
     }
 
     private fun assertSignedOut() {

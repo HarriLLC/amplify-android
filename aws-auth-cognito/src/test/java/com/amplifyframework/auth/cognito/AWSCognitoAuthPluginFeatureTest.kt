@@ -190,7 +190,13 @@ class AWSCognitoAuthPluginFeatureTest(private val testCase: FeatureTestCase) {
 
         authStateMachine = AuthStateMachine(authEnvironment, getState(feature.preConditions.state))
 
-        return RealAWSCognitoAuthPlugin(authConfiguration, authEnvironment, authStateMachine, logger)
+        return RealAWSCognitoAuthPlugin(
+            authConfiguration,
+            authEnvironment,
+            authStateMachine,
+            logger,
+            userId
+        )
     }
 
     private fun verify(validation: ExpectationShapes) {

@@ -44,6 +44,7 @@ internal object DeviceSRPCognitoSignInActions : DeviceSRPSignInActions {
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_SRP_B = "SRP_B"
     private const val KEY_USERNAME = "USERNAME"
+    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_DEVICE_KEY = "DEVICE_KEY"
     private const val KEY_DEVICE_GROUP_KEY = "DEVICE_GROUP_KEY"
 
@@ -166,6 +167,7 @@ internal object DeviceSRPCognitoSignInActions : DeviceSRPSignInActions {
                     DeviceSRPSignInEvent(DeviceSRPSignInEvent.EventType.FinalizeSignIn())
                     SignInChallengeHelper.evaluateNextStep(
                         username = username,
+                        email = event.metadata[USER_EMAIL].orEmpty(),
                         signInMethod = SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_SRP_AUTH),
                         authenticationResult = respondToAuthChallenge.authenticationResult,
                         challengeNameType = respondToAuthChallenge.challengeName,

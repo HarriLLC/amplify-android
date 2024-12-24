@@ -27,6 +27,7 @@ import com.amplifyframework.statemachine.codegen.data.SignedInData
 import com.amplifyframework.statemachine.codegen.data.SignedOutData
 import com.amplifyframework.statemachine.codegen.events.AuthEvent
 import com.amplifyframework.statemachine.codegen.events.SignOutEvent
+import kotlin.math.sign
 
 internal sealed class SignOutState : State {
     data class NotStarted(val id: String = "") : SignOutState()
@@ -52,7 +53,7 @@ internal sealed class SignOutState : State {
             return when (oldState) {
                 is NotStarted -> when (signOutEvent) {
                     is SignOutEvent.EventType.InvokeHostedUISignOut -> {
-                        val action = signOutActions.hostedUISignOutAction(signOutEvent)
+                        val action = signOutActions.hostedUISignOutAction(signOutEvent.userId, signOutEvent)
                         StateResolution(
                             SigningOutHostedUI(
                                 signOutEvent.signedInData,
@@ -63,7 +64,7 @@ internal sealed class SignOutState : State {
                         )
                     }
                     is SignOutEvent.EventType.SignOutGlobally -> {
-                        val action = signOutActions.globalSignOutAction(signOutEvent)
+                        val action = signOutActions.globalSignOutAction(signOutEvent.userId, signOutEvent)
                         StateResolution(SigningOutGlobally(), listOf(action))
                     }
                     is SignOutEvent.EventType.RevokeToken -> {
@@ -78,7 +79,7 @@ internal sealed class SignOutState : State {
                 }
                 is SigningOutHostedUI -> when (signOutEvent) {
                     is SignOutEvent.EventType.SignOutGlobally -> {
-                        val action = signOutActions.globalSignOutAction(signOutEvent)
+                        val action = signOutActions.globalSignOutAction(signOutEvent.userId, signOutEvent)
                         StateResolution(SigningOutGlobally(), listOf(action))
                     }
                     is SignOutEvent.EventType.RevokeToken -> {

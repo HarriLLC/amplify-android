@@ -28,7 +28,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class CredentialStoreStateMachineInstrumentationTest {
+class CredentialStoreStateMachineForAuthInstrumentationTest {
     private val context = InstrumentationRegistry.getInstrumentation().context
 
     private val configuration = AuthConfigurationProvider.getAuthConfigurationObject()

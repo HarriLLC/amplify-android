@@ -67,7 +67,7 @@ object AuthStateJsonGenerator : SerializableProvider {
             idToken = dummyToken,
             accessToken = dummyToken,
             refreshToken = dummyToken,
-            expiration = 300
+            expiration = 300,
         )
     )
 

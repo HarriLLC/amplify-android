@@ -23,6 +23,7 @@ internal interface AuthenticationActions {
     fun configureAuthenticationAction(event: AuthenticationEvent.EventType.Configure): Action
     fun initiateSignInAction(event: AuthenticationEvent.EventType.SignInRequested): Action
     fun initiateSignOutAction(
+        userId: String,
         event: AuthenticationEvent.EventType.SignOutRequested,
         signedInData: SignedInData?
     ): Action

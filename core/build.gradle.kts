@@ -29,6 +29,12 @@ android {
     kotlinOptions {
         moduleName = "com.amplifyframework.core"
     }
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
@@ -68,7 +74,7 @@ dependencies {
 }
 
 android.kotlinOptions {
-    jvmTarget = "11"
+    jvmTarget = "17"
 }
 
 afterEvaluate {

@@ -1084,7 +1084,7 @@ public final class RxAuthBindingTest {
             Consumer<AuthSignOutResult> onComplete = invocation.getArgument(positionOfCompletionConsumer);
             onComplete.accept(new AuthSignOutResult());
             return null;
-        }).when(delegate).signOut(anyConsumer());
+        }).when(delegate).signOut("","",anyConsumer());
 
         // Act: call the binding
         TestObserver<AuthSignOutResult> observer = auth.signOut().test();

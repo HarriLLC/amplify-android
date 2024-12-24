@@ -25,6 +25,12 @@ group = properties["POM_GROUP"].toString()
 
 android {
     namespace = "com.amplifyframework.predictions.tensorflow"
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {

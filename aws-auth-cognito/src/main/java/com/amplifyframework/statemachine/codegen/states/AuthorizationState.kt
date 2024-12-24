@@ -34,6 +34,7 @@ import com.amplifyframework.statemachine.codegen.events.AuthenticationEvent
 import com.amplifyframework.statemachine.codegen.events.AuthorizationEvent
 import com.amplifyframework.statemachine.codegen.events.DeleteUserEvent
 import com.amplifyframework.statemachine.codegen.events.SignOutEvent
+import kotlinx.serialization.Serializable
 
 internal sealed class AuthorizationState : State {
     data class NotConfigured(val id: String = "") : AuthorizationState()
@@ -56,6 +57,7 @@ internal sealed class AuthorizationState : State {
         val amplifyCredential: AmplifyCredential
     ) : AuthorizationState()
     data class StoringCredentials(val amplifyCredential: AmplifyCredential) : AuthorizationState()
+    @Serializable
     data class SessionEstablished(val amplifyCredential: AmplifyCredential) : AuthorizationState()
     data class FederatingToIdentityPool(
         val federatedToken: FederatedToken,
@@ -108,7 +110,7 @@ internal sealed class AuthorizationState : State {
                 }
                 is Configured -> when {
                     authorizationEvent is AuthorizationEvent.EventType.FetchUnAuthSession -> {
-                        val action = authorizationActions.initializeFetchUnAuthSession()
+                        val action = authorizationActions.initializeFetchUnAuthSession(authorizationEvent.userId.orEmpty())
                         val newState = FetchingUnAuthSession(FetchAuthSessionState.NotStarted())
                         StateResolution(newState, listOf(action))
                     }
@@ -149,8 +151,8 @@ internal sealed class AuthorizationState : State {
                 }
                 is SigningOut -> when {
                     event.isSignOutEvent() is SignOutEvent.EventType.SignOutLocally -> {
-                        val action = authorizationActions.persistCredentials(AmplifyCredential.Empty)
-                        StateResolution(StoringCredentials(AmplifyCredential.Empty), listOf(action))
+                        val action = authorizationActions.persistCredentials(AmplifyCredential.Empty((event.isSignOutEvent() as SignOutEvent.EventType.SignOutLocally).userId))
+                        StateResolution(StoringCredentials(AmplifyCredential.Empty((event.isSignOutEvent() as SignOutEvent.EventType.SignOutLocally).userId)), listOf(action))
                     }
                     authenticationEvent is AuthenticationEvent.EventType.CancelSignOut -> {
                         StateResolution(SessionEstablished(oldState.amplifyCredential))
@@ -167,7 +169,7 @@ internal sealed class AuthorizationState : State {
                         StateResolution(StoringCredentials(amplifyCredential), listOf(action))
                     }
                     is AuthorizationEvent.EventType.ThrowError -> StateResolution(
-                        Error(SessionError(authorizationEvent.exception, AmplifyCredential.Empty))
+                        Error(SessionError(authorizationEvent.exception, AmplifyCredential.Empty(authorizationEvent.userId)))
                     )
                     else -> {
                         val resolution = fetchAuthSessionResolver.resolve(oldState.fetchAuthSessionState, event)
@@ -211,7 +213,7 @@ internal sealed class AuthorizationState : State {
                         Error(
                             SessionError(
                                 authorizationEvent.exception,
-                                oldState.existingCredential ?: AmplifyCredential.Empty
+                                oldState.existingCredential ?: AmplifyCredential.Empty(authorizationEvent.userId)
                             )
                         )
                     )
@@ -272,6 +274,7 @@ internal sealed class AuthorizationState : State {
                     )
                     authorizationEvent is AuthorizationEvent.EventType.RefreshSession -> {
                         val action = authorizationActions.initiateRefreshSessionAction(
+                            authorizationEvent.userId,
                             authorizationEvent.amplifyCredential
                         )
                         val newState = RefreshingSession(
@@ -298,15 +301,16 @@ internal sealed class AuthorizationState : State {
                 is Error -> when {
                     authenticationEvent is AuthenticationEvent.EventType.SignInRequested -> StateResolution(SigningIn())
                     authenticationEvent is AuthenticationEvent.EventType.SignOutRequested -> StateResolution(
-                        SigningOut(AmplifyCredential.Empty)
+                        SigningOut(AmplifyCredential.Empty(authenticationEvent.signOutData.userId))
                     )
                     authorizationEvent is AuthorizationEvent.EventType.FetchUnAuthSession -> {
-                        val action = authorizationActions.initializeFetchUnAuthSession()
+                        val action = authorizationActions.initializeFetchUnAuthSession(authorizationEvent.userId.orEmpty())
                         val newState = FetchingUnAuthSession(FetchAuthSessionState.NotStarted())
                         StateResolution(newState, listOf(action))
                     }
                     authorizationEvent is AuthorizationEvent.EventType.RefreshSession -> {
                         val action = authorizationActions.initiateRefreshSessionAction(
+                            authorizationEvent.userId,
                             authorizationEvent.amplifyCredential
                         )
                         val newState = RefreshingSession(
@@ -330,7 +334,7 @@ internal sealed class AuthorizationState : State {
                     }
                     deleteUserEvent is DeleteUserEvent.EventType.DeleteUser -> {
                         StateResolution(
-                            DeletingUser(DeleteUserState.NotStarted(), AmplifyCredential.Empty),
+                            DeletingUser(DeleteUserState.NotStarted(), AmplifyCredential.Empty(deleteUserEvent.userId)),
                             listOf(authorizationActions.initiateDeleteUser(deleteUserEvent))
                         )
                     }
