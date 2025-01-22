@@ -102,7 +102,7 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
                 }
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt, signedInData.email.orEmpty())
+            dispatcher.send(evt, signedInData.userId)
         }
 
     override fun initiateRefreshSessionAction(userId: String, amplifyCredential: AmplifyCredential) =
@@ -134,11 +134,7 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
                 )
             }
             logger.verbose("$id Sending event ${evt.type}")
-            val username = when (amplifyCredential) {
-                is AmplifyCredential.UserPoolTypeCredential -> amplifyCredential.signedInData.email.orEmpty()
-                else -> ""
-            }
-            dispatcher.send(evt, username)
+            dispatcher.send(evt, userId)
         }
 
     override fun initializeFederationToIdentityPool(
@@ -164,7 +160,7 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
             val evt =
                 DeleteUserEvent(DeleteUserEvent.EventType.DeleteUser(event.accessToken, event.userId, event.username))
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt, event.username)
+            dispatcher.send(evt, event.userId)
         }
 
     override fun persistCredentials(amplifyCredential: AmplifyCredential) =
@@ -180,10 +176,10 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
                 AuthEvent(AuthEvent.EventType.CachedCredentialsFailed)
             }
             logger.verbose("$id Sending event ${evt.type}")
-            val username = when (amplifyCredential) {
-                is AmplifyCredential.UserPoolTypeCredential -> amplifyCredential.signedInData.email.orEmpty()
+            val userId = when (amplifyCredential) {
+                is AmplifyCredential.UserPoolTypeCredential -> amplifyCredential.signedInData.userId
                 else -> ""
             }
-            dispatcher.send(evt, username)
+            dispatcher.send(evt, userId)
         }
 }

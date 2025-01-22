@@ -145,7 +145,11 @@ class AuthPluginTest {
         ) {}
         override fun handleWebUISignInResponse(intent: Intent?) {}
         override fun fetchAuthSession(onSuccess: Consumer<AuthSession>, onError: Consumer<AuthException>) {}
-        override fun fetchAuthSession(username: String, userId: String, onSuccess: Consumer<AuthSession>, onError: Consumer<AuthException>) {}
+        override fun fetchAuthSession(
+            userId: String,
+            onSuccess: Consumer<AuthSession>,
+            onError: Consumer<AuthException>
+        ) {}
         override fun fetchAuthSession(
             options: AuthFetchSessionOptions,
             onSuccess: Consumer<AuthSession>,
@@ -231,9 +235,11 @@ class AuthPluginTest {
             onError: Consumer<AuthException>
         ) {}
         override fun getCurrentUser(onSuccess: Consumer<AuthUser>, onError: Consumer<AuthException>) {}
-        override fun signOut(username: String, userId: String, onComplete: Consumer<AuthSignOutResult>) {}
         override fun signOut(
-            username: String,
+            userId: String,
+            onComplete: Consumer<AuthSignOutResult>
+        ) {}
+        override fun signOut(
             userId: String,
             options: AuthSignOutOptions,
             onComplete: Consumer<AuthSignOutResult>

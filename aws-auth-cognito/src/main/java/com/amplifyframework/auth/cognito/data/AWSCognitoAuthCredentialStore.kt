@@ -65,9 +65,12 @@ internal class AWSCognitoAuthCredentialStore(
 
     //region Retrieve Credentials
     override fun retrieveCredential(userId: String?): AmplifyCredential {
-        return userId?.let {
-            deserializeCredential(userId, keyValue.get(generateKeyWithPrefix(it + "_", Key_Session)))
-        } ?: deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
+        if (userId == null) {
+            return deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
+        }
+        return deserializeCredential(userId, keyValue.get(generateKeyWithPrefix(userId + "_", Key_Session)))
+            .takeIf { it !is AmplifyCredential.Empty }
+            ?: deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
     }
 
     override fun retrieveDeviceMetadata(username: String): DeviceMetadata = deserializeMetadata(

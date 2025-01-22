@@ -212,12 +212,11 @@ public final class AuthCategory extends Category<AuthPlugin<?>> implements AuthC
 
     @Override
     public void fetchAuthSession(
-            @NonNull String username,
             @NonNull String userId,
             @NonNull Consumer<AuthSession> onSuccess,
             @NonNull Consumer<AuthException> onError
     ) {
-        getSelectedPlugin().fetchAuthSession(username, userId, onSuccess, onError);
+        getSelectedPlugin().fetchAuthSession(userId, onSuccess, onError);
     }
 
     @Override
@@ -393,16 +392,16 @@ public final class AuthCategory extends Category<AuthPlugin<?>> implements AuthC
     }
 
     @Override
-    public void signOut(@NonNull String username, @NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete) {
-        getSelectedPlugin().signOut(username, userId, onComplete);
+    public void signOut(@NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete) {
+        getSelectedPlugin().signOut(userId, onComplete);
     }
 
     @Override
     public void signOut(
-            @NonNull String username, @NonNull String userId, @NonNull AuthSignOutOptions options,
+            @NonNull String userId, @NonNull AuthSignOutOptions options,
             @NonNull Consumer<AuthSignOutResult> onComplete
     ) {
-        getSelectedPlugin().signOut(username, userId, options, onComplete);
+        getSelectedPlugin().signOut(userId, options, onComplete);
     }
 
     @Override

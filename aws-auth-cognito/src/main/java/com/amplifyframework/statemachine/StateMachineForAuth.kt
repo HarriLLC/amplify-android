@@ -45,16 +45,16 @@ internal open class StateMachineForAuth(
     private val _state = MutableStateFlow(initialState ?: resolver.defaultState)
     val state = _state.asStateFlow()
 
-    private fun getAuthStateForUser(username: String?, ignoreUsername: Boolean = false): AuthState {
-        if (username.isNullOrEmpty() || ignoreUsername) {
+    private fun getAuthStateForUser(userId: String?, ignoreUsername: Boolean = false): AuthState {
+        if (userId.isNullOrEmpty() || ignoreUsername) {
             return _state.value
         }
-        return authStateRepo.get(username) ?: authStateRepo.getDefaultConfiguredState()
+        return authStateRepo.get(userId) ?: authStateRepo.getDefaultConfiguredState()
     }
 
-    private fun setAuthState(userName: String, value: AuthState) {
-        if (userName.isNotEmpty()) {
-            authStateRepo.put(userName, value)
+    private fun setAuthState(userId: String, value: AuthState) {
+        if (userId.isNotEmpty()) {
+            authStateRepo.put(userId, value)
         }
         // Reset state to the default configured state if session is established.
         // so we can login again with different credentials.
@@ -81,13 +81,13 @@ internal open class StateMachineForAuth(
      */
     @Deprecated("Collect from state flow instead")
     fun listen(
-        username: String,
+        userId: String,
         token: StateChangeListenerToken,
         listener: (AuthState) -> Unit,
         onSubscribe: OnSubscribedCallback?
     ) {
         stateMachineScope.launch {
-            addSubscription(username, token, listener, onSubscribe)
+            addSubscription(userId, token, listener, onSubscribe)
         }
     }
 
@@ -98,7 +98,7 @@ internal open class StateMachineForAuth(
     ) {
         stateMachineScope.launch {
             addSubscription(
-                username = authStateRepo.activeStateKey(),
+                userId = authStateRepo.activeStateKey(),
                 token = token,
                 listener = listener,
                 onSubscribe = onSubscribe
@@ -120,12 +120,12 @@ internal open class StateMachineForAuth(
     }
 
     /**
-     * Invoke `completion` with the current state for the given user [username].
+     * Invoke `completion` with the current state for the given user [userId].
      * @param completion callback to invoke with the current state
      */
-    fun getCurrentState(username: String, completion: (AuthState) -> Unit) {
+    fun getCurrentState(userId: String, completion: (AuthState) -> Unit) {
         stateMachineScope.launch {
-            completion(getAuthStateForUser(username))
+            completion(getAuthStateForUser(userId))
         }
     }
 
@@ -148,13 +148,13 @@ internal open class StateMachineForAuth(
      * @param onSubscribe callback to invoke when subscription is complete
      */
     private fun addSubscription(
-        username: String? = null,
+        userId: String? = null,
         token: StateChangeListenerToken,
         listener: (AuthState) -> Unit,
         onSubscribe: OnSubscribedCallback?
     ) {
         if (pendingCancellations.contains(token)) return
-        val currentState = getAuthStateForUser(username)
+        val currentState = getAuthStateForUser(userId)
         subscribers[token] = listener
         onSubscribe?.invoke()
         stateMachineScope.launch(dispatcherQueue) {
@@ -181,9 +181,9 @@ internal open class StateMachineForAuth(
         }
     }
 
-    override fun send(event: StateMachineEvent, username: String, ignoreUsername: Boolean) {
+    override fun send(event: StateMachineEvent, userId: String, ignoreUsername: Boolean) {
         stateMachineScope.launch {
-            process(username, event, ignoreUsername)
+            process(userId, event, ignoreUsername)
         }
     }
 
@@ -210,11 +210,11 @@ internal open class StateMachineForAuth(
      * the state machine will execute any effects from the event resolution process.
      * @param event event to apply on current state for resolution
      */
-    private fun process(username: String, event: StateMachineEvent, ignoreUsername: Boolean = false) {
-        val currentState = getAuthStateForUser(username, ignoreUsername)
+    private fun process(userId: String, event: StateMachineEvent, ignoreUsername: Boolean = false) {
+        val currentState = getAuthStateForUser(userId, ignoreUsername)
         val resolution = resolver.resolve(currentState, event)
         if (currentState != resolution.newState) {
-            setAuthState(username, resolution.newState)
+            setAuthState(userId, resolution.newState)
             val subscribersToRemove = subscribers.filter { !notifySubscribers(it, resolution.newState) }
             subscribersToRemove.forEach { subscribers.remove(it.key) }
         }

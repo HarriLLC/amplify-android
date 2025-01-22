@@ -48,7 +48,7 @@ internal object HostedUICognitoActions : HostedUIActions {
     override fun fetchHostedUISignInToken(event: HostedUIEvent.EventType.FetchToken, browserPackage: String?) =
         Action<AuthEnvironment>("InitHostedUITokenFetch") { id, dispatcher ->
             logger.verbose("$id Starting execution")
-            var email: String? = null
+            var userid: String? = null
             val evt = try {
                 // This should never happen, but if it does it is due to bad Oauth configuration block in
                 // amplify json config
@@ -57,8 +57,7 @@ internal object HostedUICognitoActions : HostedUIActions {
                 val token = hostedUIClient.fetchToken(event.uri)
                 val userId = token.accessToken?.let { JWTParser.getClaim(it, "sub") } ?: ""
                 val username = token.accessToken?.let { JWTParser.getClaim(it, "username") } ?: ""
-                email = username
-
+                userid = userId
                 val signedInData = SignedInData(
                     userId,
                     username,
@@ -69,7 +68,7 @@ internal object HostedUICognitoActions : HostedUIActions {
                 )
                 val tokenFetchedEvent = HostedUIEvent(HostedUIEvent.EventType.TokenFetched)
                 logger.verbose("$id Sending event ${tokenFetchedEvent.type}")
-                dispatcher.send(tokenFetchedEvent, username, ignoreUsername = true)
+                dispatcher.send(tokenFetchedEvent, userId, ignoreUsername = true)
 
                 AuthenticationEvent(AuthenticationEvent.EventType.SignInCompleted(signedInData, DeviceMetadata.Empty))
             } catch (e: Exception) {
@@ -80,6 +79,6 @@ internal object HostedUICognitoActions : HostedUIActions {
                 AuthenticationEvent(AuthenticationEvent.EventType.CancelSignIn())
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt, email.orEmpty())
+            dispatcher.send(evt, userid.orEmpty())
         }
 }
