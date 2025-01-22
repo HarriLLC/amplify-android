@@ -102,7 +102,7 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
                 }
             }
             logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt, signedInData.userId)
+            dispatcher.send(evt, signedInData.userId, true)
         }
 
     override fun initiateRefreshSessionAction(userId: String, amplifyCredential: AmplifyCredential) =
