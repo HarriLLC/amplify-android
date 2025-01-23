@@ -269,7 +269,6 @@ public interface AuthCategoryBehavior {
      * @param onError   Error callback
      */
     void fetchAuthSession(
-            @NonNull String username,
             @NonNull String userId,
             @NonNull Consumer<AuthSession> onSuccess,
             @NonNull Consumer<AuthException> onError);
@@ -549,18 +548,16 @@ public interface AuthCategoryBehavior {
      *
      * @param onComplete Complete callback
      */
-    void signOut(@NonNull String username, @NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete);
+    void signOut(@NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete);
 
     /**
      * Sign out with advanced options.
      *
-     * @param username
      * @param userId
      * @param options    Advanced options for sign out (e.g. whether to sign out of all devices globally)
      * @param onComplete Complete callback
      */
     void signOut(
-            @NonNull String username,
             @NonNull String userId,
             @NonNull AuthSignOutOptions options,
             @NonNull Consumer<AuthSignOutResult> onComplete
