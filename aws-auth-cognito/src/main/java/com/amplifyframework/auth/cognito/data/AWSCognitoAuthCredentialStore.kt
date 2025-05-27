@@ -16,11 +16,14 @@
 package com.amplifyframework.auth.cognito.data
 
 import android.content.Context
+import android.util.Log
 import com.amplifyframework.auth.cognito.AuthConfiguration
+import com.amplifyframework.auth.cognito.getCognitoSession
 import com.amplifyframework.core.store.KeyValueRepository
 import com.amplifyframework.statemachine.codegen.data.AmplifyCredential
 import com.amplifyframework.statemachine.codegen.data.AuthCredentialStore
 import com.amplifyframework.statemachine.codegen.data.DeviceMetadata
+import com.amplifyframework.statemachine.codegen.data.SignedInData
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -79,9 +82,22 @@ internal class AWSCognitoAuthCredentialStore(
         if (userId == null) {
             return deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
         }
-        return deserializeCredential(userId, keyValue.get(generateKeyWithPrefix(userId + "_", Key_Session)))
+        val creds = deserializeCredential(userId, keyValue.get(generateKeyWithPrefix(userId + "_", Key_Session)))
             .takeIf { it !is AmplifyCredential.Empty }
             ?: deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
+
+        Log.d("RealAWSCognitoAuthPlugin", "---------------------- retrieveCredential ----------------------")
+        Log.d("RealAWSCognitoAuthPlugin", "Retrieved credentials for userId: $userId, credential: $creds")
+        Log.d(
+            "RealAWSCognitoAuthPlugin",
+            "Retrieved credentials Access Token: ${(creds as AmplifyCredential.UserPoolTypeCredential).signedInData.userId}"
+        )
+        Log.d(
+            "RealAWSCognitoAuthPlugin",
+            "Retrieved credentials Access Token: ${(creds as AmplifyCredential.UserPoolTypeCredential).signedInData.cognitoUserPoolTokens.accessToken}"
+        )
+        Log.d("RealAWSCognitoAuthPlugin", "-------------------------------------------------------------")
+        return creds
     }
 
     override fun retrieveDeviceMetadata(username: String): DeviceMetadata = deserializeMetadata(

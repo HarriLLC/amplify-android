@@ -1,5 +1,6 @@
 package com.amplifyframework.statemachine
 
+import android.util.Log
 import com.amplifyframework.auth.cognito.AuthEnvironment
 import com.amplifyframework.statemachine.codegen.data.AuthStateRepo
 import com.amplifyframework.statemachine.codegen.data.isSessionEstablished
@@ -133,6 +134,15 @@ internal open class StateMachineForAuth(
      * Invoke `completion` with the state for the last active user (if exists).
      */
     fun getCurrentState(completion: (AuthState) -> Unit) {
+        Log.d("RealAWSCognitoAuthPlugin", "---------------- getCurrentState ---------------- ")
+        Log.d("RealAWSCognitoAuthPlugin", "getCurrentState called")
+        Log.d("RealAWSCognitoAuthPlugin", "Active state key: ${authStateRepo.activeStateKey()}")
+        Log.d("RealAWSCognitoAuthPlugin", "Active state: ${authStateRepo.activeState()}")
+        Log.d("RealAWSCognitoAuthPlugin", "getAuthStateForUser - Current state: ${getAuthStateForUser(null)}")
+        Log.d("RealAWSCognitoAuthPlugin", "getCurrentState - Current state: ${_state.value}")
+        Log.d("RealAWSCognitoAuthPlugin", "completion: ${authStateRepo.activeState() ?: getAuthStateForUser(null)}")
+        Log.d("RealAWSCognitoAuthPlugin", "----------------------------------------------- ")
+
         stateMachineScope.launch {
             completion(authStateRepo.activeState() ?: getAuthStateForUser(null))
         }

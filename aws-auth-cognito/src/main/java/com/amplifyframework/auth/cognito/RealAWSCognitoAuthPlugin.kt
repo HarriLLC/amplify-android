@@ -17,6 +17,7 @@ package com.amplifyframework.auth.cognito
 
 import android.app.Activity
 import android.content.Intent
+import android.util.Log
 import androidx.annotation.WorkerThread
 import aws.sdk.kotlin.services.cognitoidentityprovider.associateSoftwareToken
 import aws.sdk.kotlin.services.cognitoidentityprovider.confirmForgotPassword
@@ -783,6 +784,13 @@ internal class RealAWSCognitoAuthPlugin(
         authStateMachine.getCurrentState { authState ->
             val authNState = authState.authNState
             val signInState = (authNState as? AuthenticationState.SigningIn)?.signInState
+
+            Log.d("RealAWSCognitoAuthPlugin", "Confirm Sign In called with challengeResponse: $challengeResponse")
+            Log.d("RealAWSCognitoAuthPlugin", "Confirm Sign In called with options: $options")
+            Log.d("RealAWSCognitoAuthPlugin", "Current auth state: $authState")
+            Log.d("RealAWSCognitoAuthPlugin", "Current authNState: ${authState.authNState}")
+            Log.d("RealAWSCognitoAuthPlugin", "Current signInState: $signInState")
+            Log.d("RealAWSCognitoAuthPlugin", "Current signInState type: ${signInState?.javaClass?.simpleName}")
             if (signInState is SignInState.ResolvingChallenge) {
                 when (signInState.challengeState) {
                     is SignInChallengeState.WaitingForAnswer, is SignInChallengeState.Error -> {
@@ -834,6 +842,17 @@ internal class RealAWSCognitoAuthPlugin(
                 val authZState = authState.authZState
                 val signInState = (authNState as? AuthenticationState.SigningIn)?.signInState
                 val totpSetupState = (signInState as? SignInState.ResolvingTOTPSetup)?.setupTOTPState
+
+                Log.d("RealAWSCognitoAuthPlugin", "Confirm Sign In listen block triggered")
+                Log.d("RealAWSCognitoAuthPlugin", "Current authNState: $authNState")
+                Log.d("RealAWSCognitoAuthPlugin", "Current authZState: $authZState")
+                Log.d("RealAWSCognitoAuthPlugin", "Current signInState: $signInState")
+                Log.d("RealAWSCognitoAuthPlugin", "Current totpSetupState: $totpSetupState")
+                Log.d("RealAWSCognitoAuthPlugin", "Challenge response: $challengeResponse")
+                Log.d("RealAWSCognitoAuthPlugin", "Options: $options")
+                Log.d("RealAWSCognitoAuthPlugin", "SignInState type: ${signInState?.javaClass?.simpleName}")
+                Log.d("RealAWSCognitoAuthPlugin", "TotpSetupState type: ${totpSetupState?.javaClass?.simpleName}")
+
                 when {
                     authNState is AuthenticationState.SignedIn &&
                             authZState is AuthorizationState.SessionEstablished -> {
