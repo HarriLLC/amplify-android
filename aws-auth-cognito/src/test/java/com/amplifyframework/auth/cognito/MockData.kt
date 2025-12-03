@@ -23,6 +23,18 @@ import com.amplifyframework.auth.MFAType
 import com.amplifyframework.auth.TOTPSetupDetails
 import com.amplifyframework.auth.result.step.AuthNextSignInStep
 import com.amplifyframework.auth.result.step.AuthSignInStep
+import com.amplifyframework.statemachine.codegen.data.AmplifyCredential
+import com.amplifyframework.statemachine.codegen.data.CognitoUserPoolTokens
+import com.amplifyframework.statemachine.codegen.data.DeviceMetadata
+import com.amplifyframework.statemachine.codegen.data.SignInMethod
+import com.amplifyframework.statemachine.codegen.data.SignedInData
+import com.amplifyframework.statemachine.codegen.data.SignedOutData
+import com.amplifyframework.statemachine.codegen.states.AuthState
+import com.amplifyframework.statemachine.codegen.states.AuthenticationState
+import com.amplifyframework.statemachine.codegen.states.AuthorizationState
+import io.mockk.every
+import io.mockk.mockk
+import java.util.Date
 
 fun mockWebAuthnCredentialDescription(
     credentialId: String = "id",
@@ -51,4 +63,41 @@ fun mockAuthNextSignInStep(
     totpSetupDetails,
     allowedMFATypes,
     availableFactors
+)
+
+internal fun mockSignedInData(
+    userId: String = "userid",
+    username: String = "username",
+    signedInDate: Date = Date(),
+    signInMethod: SignInMethod = SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_SRP_AUTH),
+    cognitoUserPoolTokens: CognitoUserPoolTokens =
+        CognitoUserPoolTokens(idToken = null as String?, accessToken = null, refreshToken = null, expiration = null)
+) = SignedInData(
+    userId = userId,
+    username = username,
+    signedInDate = signedInDate,
+    signInMethod = signInMethod,
+    cognitoUserPoolTokens = cognitoUserPoolTokens
+)
+
+internal fun mockAuthState(
+    authenticationState: AuthenticationState = AuthenticationState.NotConfigured(),
+    authorizationState: AuthorizationState = AuthorizationState.NotConfigured()
+): AuthState = mockk {
+    every { authNState } returns authenticationState
+    every { authZState } returns authorizationState
+}
+
+internal fun mockSignedOutState(signedOutData: SignedOutData = mockk()) = mockAuthState(
+    AuthenticationState.SignedOut(signedOutData),
+    AuthorizationState.Configured()
+)
+
+internal fun mockSignedInState(
+    signedInData: SignedInData = mockk(),
+    deviceMetadata: DeviceMetadata = mockk(),
+    amplifyCredential: AmplifyCredential = mockk()
+) = mockAuthState(
+    AuthenticationState.SignedIn(signedInData, deviceMetadata),
+    AuthorizationState.SessionEstablished(amplifyCredential)
 )

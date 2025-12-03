@@ -58,6 +58,7 @@ import com.amplifyframework.datastore.storage.StorageResult;
 import com.amplifyframework.datastore.storage.sqlite.adapter.SQLiteColumn;
 import com.amplifyframework.datastore.storage.sqlite.adapter.SQLiteTable;
 import com.amplifyframework.datastore.storage.sqlite.migrations.ModelMigrations;
+import com.amplifyframework.datastore.syncengine.MigrationFlagsTable;
 import com.amplifyframework.datastore.utils.ErrorInspector;
 import com.amplifyframework.logging.Logger;
 import com.amplifyframework.util.GsonFactory;
@@ -866,6 +867,7 @@ public final class SQLiteStorageAdapter implements LocalStorageAdapter {
     private CreateSqlCommands getCreateCommands(@NonNull Set<String> modelNames) {
         final Set<SqlCommand> createTableCommands = new HashSet<>();
         final Set<SqlCommand> createIndexCommands = new HashSet<>();
+        final Set<SqlCommand> createInsertCommands = new HashSet<>();
         for (String modelName : modelNames) {
             final ModelSchema modelSchema =
                 schemaRegistry.getModelSchemaForModelClass(modelName);
@@ -873,7 +875,13 @@ public final class SQLiteStorageAdapter implements LocalStorageAdapter {
             createIndexCommands.addAll(sqlCommandFactory.createIndexesFor(modelSchema));
             createIndexCommands.addAll(sqlCommandFactory.createIndexesForForeignKeys(modelSchema));
         }
-        return new CreateSqlCommands(createTableCommands, createIndexCommands);
+
+        // Create the Migrations Table and insert all known migrations
+        createTableCommands.add(new SqlCommand(MigrationFlagsTable.TABLE_NAME, MigrationFlagsTable.CREATE_SQL));
+        for (String insertCommand : MigrationFlagsTable.initialInsertStatements()) {
+            createInsertCommands.add(new SqlCommand(MigrationFlagsTable.TABLE_NAME, insertCommand));
+        }
+        return new CreateSqlCommands(createTableCommands, createIndexCommands, createInsertCommands);
     }
 
     private <T extends Model> void writeData(
@@ -934,7 +942,10 @@ public final class SQLiteStorageAdapter implements LocalStorageAdapter {
                     Objects.requireNonNull(databaseConnectionHandle);
                     sqliteStorageHelper.update(databaseConnectionHandle, oldVersion, newVersion);
                 } else {
-                    LOG.debug("Database up to date. Checking ModelMetadata.");
+                    // We only need to do the model migration here because the current implementation of
+                    // sqliteStorageHelper.update will drop all existing tables and recreate tables with new schemas,
+                    // However, this might be changed in the future
+                    LOG.debug("Database up to date. Checking System Models.");
                     new ModelMigrations(databaseConnectionHandle, modelsProvider).apply();
                 }
             }

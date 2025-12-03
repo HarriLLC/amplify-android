@@ -132,8 +132,11 @@ internal sealed class AuthorizationState : State {
                 }
                 is StoringCredentials -> when (authEvent) {
                     is AuthEvent.EventType.ReceivedCachedCredentials -> {
-                        if (oldState.amplifyCredential is AmplifyCredential.Empty) StateResolution(Configured())
-                        else StateResolution(SessionEstablished(authEvent.storedCredentials))
+                        if (oldState.amplifyCredential is AmplifyCredential.Empty) {
+                            StateResolution(Configured())
+                        } else {
+                            StateResolution(SessionEstablished(authEvent.storedCredentials))
+                        }
                     }
                     is AuthEvent.EventType.CachedCredentialsFailed -> StateResolution(NotConfigured())
                     else -> defaultResolution
@@ -258,7 +261,8 @@ internal sealed class AuthorizationState : State {
                     else -> {
                         val resolution = deleteUserResolver.resolve(oldState.deleteUserState, event)
                         StateResolution(
-                            DeletingUser(resolution.newState, oldState.amplifyCredential), resolution.actions
+                            DeletingUser(resolution.newState, oldState.amplifyCredential),
+                            resolution.actions
                         )
                     }
                 }

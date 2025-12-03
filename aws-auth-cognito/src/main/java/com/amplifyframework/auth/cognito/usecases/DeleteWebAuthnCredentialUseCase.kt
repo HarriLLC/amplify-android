@@ -18,9 +18,8 @@ package com.amplifyframework.auth.cognito.usecases
 import aws.sdk.kotlin.services.cognitoidentityprovider.CognitoIdentityProviderClient
 import aws.sdk.kotlin.services.cognitoidentityprovider.deleteWebAuthnCredential
 import com.amplifyframework.auth.cognito.AuthStateMachine
-import com.amplifyframework.auth.cognito.requireAuthenticationState
+import com.amplifyframework.auth.cognito.requireSignedInState
 import com.amplifyframework.auth.options.AuthDeleteWebAuthnCredentialOptions
-import com.amplifyframework.statemachine.codegen.states.AuthenticationState.SignedIn
 
 internal class DeleteWebAuthnCredentialUseCase(
     private val client: CognitoIdentityProviderClient,
@@ -30,7 +29,7 @@ internal class DeleteWebAuthnCredentialUseCase(
     @Suppress("UNUSED_PARAMETER")
     suspend fun execute(credentialId: String, options: AuthDeleteWebAuthnCredentialOptions) {
         // User must be signed in to call this API
-        stateMachine.requireAuthenticationState<SignedIn>()
+        stateMachine.requireSignedInState()
 
         val accessToken = fetchAuthSession.execute().accessToken
         client.deleteWebAuthnCredential {
