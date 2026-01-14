@@ -175,9 +175,9 @@ final class RxAuthBinding implements RxAuthCategoryBehavior {
     }
 
     @Override
-    public Single<AuthSession> fetchAuthSession(@NonNull AuthFetchSessionOptions options) {
+    public Single<AuthSession> fetchAuthSession(@NonNull String userId, @NonNull AuthFetchSessionOptions options) {
         return toSingle((onResult, onError) ->
-            delegate.fetchAuthSession(options, onResult, onError));
+            delegate.fetchAuthSession(userId, options, onResult, onError));
     }
 
     @Override
@@ -312,12 +312,12 @@ final class RxAuthBinding implements RxAuthCategoryBehavior {
 
     @Override
     public Single<AuthSignOutResult> signOut() {
-        return toSingle((onComplete, onError) -> delegate.signOut("","",onComplete));
+        return toSingle((onComplete, onError) -> delegate.signOut("",onComplete));
     }
 
     @Override
     public Single<AuthSignOutResult> signOut(@NonNull AuthSignOutOptions options) {
-        return toSingle((onComplete, onError) -> delegate.signOut("", "", options, onComplete));
+        return toSingle((onComplete, onError) -> delegate.signOut("", options, onComplete));
     }
 
     @Override

@@ -609,9 +609,9 @@ class AWSCognitoAuthPluginTest {
     fun verifySignOut() {
         val expectedOnComplete = Consumer<AuthSignOutResult> { }
 
-        authPlugin.signOut("username-testing","testing",expectedOnComplete)
+        authPlugin.signOut("testing", expectedOnComplete)
 
-        verify(timeout = CHANNEL_TIMEOUT) { realPlugin.signOut("username-testing","testing",any()) }
+        verify(timeout = CHANNEL_TIMEOUT) { realPlugin.signOut("testing", any()) }
     }
 
     @Test
@@ -619,9 +619,9 @@ class AWSCognitoAuthPluginTest {
         val expectedOptions = AuthSignOutOptions.builder().build()
         val expectedOnComplete = Consumer<AuthSignOutResult> { }
 
-        authPlugin.signOut("username-testing","testing", expectedOptions, expectedOnComplete)
+        authPlugin.signOut("testing", expectedOptions, expectedOnComplete)
 
-        verify(timeout = CHANNEL_TIMEOUT) { realPlugin.signOut("username-testing","testing",expectedOptions, any()) }
+        verify(timeout = CHANNEL_TIMEOUT) { realPlugin.signOut("testing", expectedOptions, any()) }
     }
 
     @Test
@@ -684,11 +684,10 @@ class AWSCognitoAuthPluginTest {
         val expectedOnSuccess = Action { }
         val expectedOnError = Consumer<AuthException> { }
 
-        authPlugin.clearFederationToIdentityPool("username-testing", "testing", expectedOnSuccess, expectedOnError)
+        authPlugin.clearFederationToIdentityPool("testing", expectedOnSuccess, expectedOnError)
 
         verify(timeout = CHANNEL_TIMEOUT) {
             realPlugin.clearFederationToIdentityPool(
-                "username-testing",
                 "testing",
                 any(),
                 any()

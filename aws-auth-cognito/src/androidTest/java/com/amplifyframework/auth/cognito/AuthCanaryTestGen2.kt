@@ -330,7 +330,7 @@ class AuthCanaryTestGen2 {
     fun signOut() {
         signInUser(username, password)
         val latch = CountDownLatch(1)
-        Amplify.Auth.signOut(username, "") { signOutResult ->
+        Amplify.Auth.signOut("") { signOutResult ->
             when (signOutResult) {
                 is AWSCognitoAuthSignOutResult.CompleteSignOut -> {
                     // Sign Out completed fully and without errors.
@@ -360,7 +360,7 @@ class AuthCanaryTestGen2 {
         val options = AuthSignOutOptions.builder()
             .globalSignOut(true)
             .build()
-        Amplify.Auth.signOut(username, "", options) { signOutResult ->
+        Amplify.Auth.signOut("", options) { signOutResult ->
             when (signOutResult) {
                 is AWSCognitoAuthSignOutResult.CompleteSignOut -> {
                     // Sign Out completed fully and without errors.
@@ -428,7 +428,7 @@ class AuthCanaryTestGen2 {
 
     private fun signOutUser() {
         val latch = CountDownLatch(1)
-        auth.signOut("", "") { latch.countDown() }
+        auth.signOut("") { latch.countDown() }
         latch.await(TIMEOUT_S, TimeUnit.SECONDS)
     }
 

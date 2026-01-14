@@ -36,6 +36,7 @@ internal class AWSCognitoAuthCredentialStore(
         private const val Key_Session = "session"
         private const val Key_DeviceMetadata = "deviceMetadata"
         private const val Key_ASFDevice = "asfDevice"
+        private const val SESSION_KEY_REGEX = "^[a-fA-F0-9-]+_amplify.*\\.session$"
     }
 
     private var keyValue: KeyValueRepository =
@@ -43,9 +44,19 @@ internal class AWSCognitoAuthCredentialStore(
 
     //region Save Credentials
     override fun saveCredential(credential: AmplifyCredential) {
+        if (credential is AmplifyCredential.Empty && credential.clearAllSessions) {
+            // Remove all logged in users sessions.
+            keyValue.removeAll(SESSION_KEY_REGEX)
+            return
+        }
         val userId =
-            if (credential is AmplifyCredential.UserPool) credential.signedInData.userId else if (credential is AmplifyCredential.IdentityPool) credential.identityId else null
+            when (credential) {
+                is AmplifyCredential.UserPool -> credential.signedInData.userId
+                is AmplifyCredential.IdentityPool -> credential.identityId
+                else -> null
+            }
         val sessionKey = userId?.let { generateKeyWithPrefix(it + "_", Key_Session) }
+
         keyValue.put(
             sessionKey ?: generateKey(Key_Session),
             serializeCredential(credential)
@@ -65,9 +76,12 @@ internal class AWSCognitoAuthCredentialStore(
 
     //region Retrieve Credentials
     override fun retrieveCredential(userId: String?): AmplifyCredential {
-        return userId?.let {
-            deserializeCredential(userId, keyValue.get(generateKeyWithPrefix(it + "_", Key_Session)))
-        } ?: deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
+        if (userId == null) {
+            return deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
+        }
+        return deserializeCredential(userId, keyValue.get(generateKeyWithPrefix(userId + "_", Key_Session)))
+            .takeIf { it !is AmplifyCredential.Empty }
+            ?: deserializeCredential(null, keyValue.get(generateKey(Key_Session)))
     }
 
     override fun retrieveDeviceMetadata(username: String): DeviceMetadata = deserializeMetadata(

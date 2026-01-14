@@ -240,16 +240,16 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         delegate.handleWebUISignInResponse(intent)
     }
 
-    suspend fun fetchAuthSession(username: String, userId: String): AuthSession {
+    suspend fun fetchAuthSession(userId: String): AuthSession {
         return suspendCoroutine { continuation ->
             delegate.fetchAuthSession(
-                username,
                 userId,
                 { continuation.resume(it) },
                 { continuation.resumeWithException(it) }
             )
         }
     }
+
     suspend fun fetchAuthSession(): AuthSession {
         return suspendCoroutine { continuation ->
             delegate.fetchAuthSession(
@@ -262,6 +262,17 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
     suspend fun fetchAuthSession(options: AuthFetchSessionOptions): AuthSession {
         return suspendCoroutine { continuation ->
             delegate.fetchAuthSession(
+                options,
+                { continuation.resume(it) },
+                { continuation.resumeWithException(it) }
+            )
+        }
+    }
+
+    suspend fun fetchAuthSession(userId: String, options: AuthFetchSessionOptions): AuthSession {
+        return suspendCoroutine { continuation ->
+            delegate.fetchAuthSession(
+                userId,
                 options,
                 { continuation.resume(it) },
                 { continuation.resumeWithException(it) }
@@ -487,15 +498,25 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         }
     }
 
-    suspend fun signOut(username: String, userId: String): AuthSignOutResult {
+    suspend fun signOut(userId: String): AuthSignOutResult {
         return suspendCoroutine { continuation ->
-            delegate.signOut(username, userId) { continuation.resume(it) }
+            delegate.signOut(userId) { continuation.resume(it) }
         }
     }
 
-    suspend fun signOut(username: String, userId: String, options: AuthSignOutOptions): AuthSignOutResult {
+    suspend fun signOut(): AuthSignOutResult {
         return suspendCoroutine { continuation ->
-            delegate.signOut(username, userId, options) { continuation.resume(it) }
+            delegate.signOut(
+                userId = "",
+                signOutAllUsers = true,
+                options = AuthSignOutOptions.builder().build()
+            ) { continuation.resume(it) }
+        }
+    }
+
+    suspend fun signOut(userId: String, options: AuthSignOutOptions): AuthSignOutResult {
+        return suspendCoroutine { continuation ->
+            delegate.signOut(userId, options) { continuation.resume(it) }
         }
     }
 
@@ -524,10 +545,9 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         }
     }
 
-    suspend fun clearFederationToIdentityPool(username: String, userId: String) {
+    suspend fun clearFederationToIdentityPool(userId: String) {
         return suspendCoroutine { continuation ->
             delegate.clearFederationToIdentityPool(
-                username,
                 userId,
                 { continuation.resume(Unit) },
                 { continuation.resumeWithException(it) }
@@ -543,6 +563,7 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
             )
         }
     }
+
     suspend fun verifyTOTPSetup(code: String, options: AuthVerifyTOTPSetupOptions) {
         return suspendCoroutine { continuation ->
             delegate.verifyTOTPSetup(

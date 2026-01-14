@@ -269,7 +269,6 @@ public interface AuthCategoryBehavior {
      * @param onError   Error callback
      */
     void fetchAuthSession(
-            @NonNull String username,
             @NonNull String userId,
             @NonNull Consumer<AuthSession> onSuccess,
             @NonNull Consumer<AuthException> onError);
@@ -285,6 +284,23 @@ public interface AuthCategoryBehavior {
      * @param onError   Error callback
      */
     void fetchAuthSession(
+            @NonNull Consumer<AuthSession> onSuccess,
+            @NonNull Consumer<AuthException> onError);
+
+    /**
+     * Retrieve the user's current session information - by default just whether they are signed out or in.
+     * Depending on how a plugin implements this, the resulting AuthSession can also be cast to a type specific
+     * to that plugin which contains the various security tokens and other identifying information if you want to
+     * manually use them outside the plugin. Within Amplify this should not be needed as the other categories will
+     * automatically work as long as you are signed in.
+     *
+     * @param options   Advanced options for force refresh session.
+     * @param onSuccess Success callback
+     * @param onError   Error callback
+     */
+    void fetchAuthSession(
+            @NonNull String userId,
+            @NonNull AuthFetchSessionOptions options,
             @NonNull Consumer<AuthSession> onSuccess,
             @NonNull Consumer<AuthException> onError);
 
@@ -549,20 +565,27 @@ public interface AuthCategoryBehavior {
      *
      * @param onComplete Complete callback
      */
-    void signOut(@NonNull String username, @NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete);
+    void signOut(@NonNull String userId, @NonNull Consumer<AuthSignOutResult> onComplete);
 
     /**
      * Sign out with advanced options.
      *
-     * @param username
-     * @param userId
+     * @param userId     The user ID of the user to sign out
      * @param options    Advanced options for sign out (e.g. whether to sign out of all devices globally)
      * @param onComplete Complete callback
      */
     void signOut(
-            @NonNull String username,
             @NonNull String userId,
             @NonNull AuthSignOutOptions options,
+            @NonNull Consumer<AuthSignOutResult> onComplete
+    );
+
+    /**
+     * Sign out all users from the current device.
+     *
+     * @param onComplete Complete callback
+     */
+    void signOut(
             @NonNull Consumer<AuthSignOutResult> onComplete
     );
 
