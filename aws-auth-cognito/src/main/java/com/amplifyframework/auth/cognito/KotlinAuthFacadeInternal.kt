@@ -259,9 +259,10 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
         }
     }
 
-    suspend fun fetchAuthSession(options: AuthFetchSessionOptions): AuthSession {
+    suspend fun fetchAuthSession(userId: String, options: AuthFetchSessionOptions): AuthSession {
         return suspendCoroutine { continuation ->
             delegate.fetchAuthSession(
+                userId,
                 options,
                 { continuation.resume(it) },
                 { continuation.resumeWithException(it) }

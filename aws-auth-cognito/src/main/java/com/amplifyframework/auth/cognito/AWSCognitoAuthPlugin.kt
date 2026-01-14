@@ -308,10 +308,17 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
         enqueue(onSuccess, onError) { queueFacade.fetchAuthSession(userId) }
 
     override fun fetchAuthSession(
+        userId: String,
         options: AuthFetchSessionOptions,
         onSuccess: Consumer<AuthSession>,
         onError: Consumer<AuthException>
-    ) = enqueue(onSuccess, onError) { queueFacade.fetchAuthSession(options) }
+    ) = enqueue(onSuccess, onError) { queueFacade.fetchAuthSession(userId, options) }
+
+    override fun fetchAuthSession(
+        options: AuthFetchSessionOptions,
+        onSuccess: Consumer<AuthSession>,
+        onError: Consumer<AuthException>
+    ) = enqueue(onSuccess, onError) { queueFacade.fetchAuthSession("", options) }
 
     override fun fetchAuthSession(onSuccess: Consumer<AuthSession>, onError: Consumer<AuthException>) =
         enqueue(onSuccess, onError) { queueFacade.fetchAuthSession() }
