@@ -15,11 +15,11 @@
 package com.amplifyframework.logging.cloudwatch.db
 
 import android.content.Context
-import net.sqlcipher.database.SQLiteDatabase
-import net.sqlcipher.database.SQLiteOpenHelper
+import net.zetetic.database.sqlcipher.SQLiteDatabase
+import net.zetetic.database.sqlcipher.SQLiteOpenHelper
 
-internal class CloudWatchDatabaseHelper(context: Context) :
-    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+internal class CloudWatchDatabaseHelper(context: Context, passphrase: String) :
+    SQLiteOpenHelper(context, DATABASE_NAME, passphrase, null, DATABASE_VERSION, 0, null, null, false) {
 
     companion object {
         internal const val DATABASE_NAME = "amplify.logging.cloudwatch.db"
