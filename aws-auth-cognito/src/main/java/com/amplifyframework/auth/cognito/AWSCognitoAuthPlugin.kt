@@ -441,7 +441,7 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
         onError = ::throwIt
     ) { useCaseFactory.signOut().execute() }
 
-    override fun signOut(
+    fun signOut(
         options: AuthSignOutOptions,
         onComplete: Consumer<AuthSignOutResult>
     ) = enqueue(
