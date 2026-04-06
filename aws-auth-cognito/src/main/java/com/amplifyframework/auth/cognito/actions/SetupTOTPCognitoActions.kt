@@ -152,7 +152,6 @@ internal object SetupTOTPCognitoActions : SetupTOTPActions {
                 response?.let {
                     SignInChallengeHelper.evaluateNextStep(
                         username = eventType.username,
-                        email = eventType.username,
                         challengeNameType = response.challengeName,
                         session = response.session,
                         challengeParameters = response.challengeParameters,

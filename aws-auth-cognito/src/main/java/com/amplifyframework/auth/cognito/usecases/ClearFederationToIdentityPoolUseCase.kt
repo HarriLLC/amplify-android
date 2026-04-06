@@ -37,7 +37,7 @@ internal class ClearFederationToIdentityPoolUseCase(
 
         when {
             authState.isFederatedToIdentityPool() -> {
-                val event = AuthenticationEvent(AuthenticationEvent.EventType.ClearFederationToIdentityPool())
+                val event = AuthenticationEvent(AuthenticationEvent.EventType.ClearFederationToIdentityPool(userId = ""))
                 when (val result = signOut.completeSignOut(event = event, sendHubEvent = false)) {
                     is AWSCognitoAuthSignOutResult.FailedSignOut -> throw result.exception
                     else -> emitter.sendHubEvent(

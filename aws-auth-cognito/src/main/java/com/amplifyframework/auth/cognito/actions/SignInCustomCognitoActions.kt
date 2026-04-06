@@ -68,7 +68,6 @@ internal object SignInCustomCognitoActions : CustomSignInActions {
                     val activeUserName = AuthHelper.getActiveUsername(event.username, initiateAuthResponse)
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
-                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = initiateAuthResponse.challengeName,
                         session = initiateAuthResponse.session,
                         challengeParameters = initiateAuthResponse.challengeParameters,

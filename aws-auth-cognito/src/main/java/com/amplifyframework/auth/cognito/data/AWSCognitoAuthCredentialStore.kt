@@ -74,8 +74,6 @@ internal class AWSCognitoAuthCredentialStore(
     //endregion
 
     //region Retrieve Credentials
-    override fun retrieveCredential(): AmplifyCredential = deserializeCredential(null, keyValue.get(generateKey(KEY_SESSION)))
-
     override fun retrieveCredential(userId: String?): AmplifyCredential {
         if (userId == null) {
             return deserializeCredential(null, keyValue.get(generateKey(KEY_SESSION)))
@@ -95,8 +93,6 @@ internal class AWSCognitoAuthCredentialStore(
     //endregion
 
     //region Delete Credentials
-    override fun deleteCredential() = keyValue.remove(generateKey(KEY_SESSION))
-
     override fun deleteCredential(userId: String?) {
         userId?.let {
             keyValue.remove(generateKeyWithPrefix(it + "_", KEY_SESSION))

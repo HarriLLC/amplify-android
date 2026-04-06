@@ -79,7 +79,6 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
 
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
-                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = ChallengeNameType.SelectChallenge,
                         session = resolvedSession,
                         availableChallenges = listOfChallenges,
@@ -95,7 +94,6 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
 
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
-                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = initiateAuthResponse.challengeName,
                         session = resolvedSession,
                         challengeParameters = initiateAuthResponse.challengeParameters,

@@ -55,7 +55,6 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             if (isMfaSetupSelectionChallenge(challenge)) {
                 val event = SignInChallengeHelper.evaluateNextStep(
                     username = username ?: "",
-                    email = metadata[USER_EMAIL].orEmpty(),
                     challengeNameType = ChallengeNameType.MfaSetup,
                     session = challenge.session,
                     challengeParameters = mapOf("MFAS_CAN_SETUP" to answer),
@@ -104,7 +103,6 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             response?.let {
                 SignInChallengeHelper.evaluateNextStep(
                     username = username ?: "",
-                    metadata[USER_EMAIL].orEmpty(),
                     challengeNameType = response.challengeName,
                     session = response.session,
                     challengeParameters = response.challengeParameters,

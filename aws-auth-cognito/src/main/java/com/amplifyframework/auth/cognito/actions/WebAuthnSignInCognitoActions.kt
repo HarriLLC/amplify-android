@@ -58,7 +58,6 @@ internal object WebAuthnSignInCognitoActions : WebAuthnSignInActions {
 
             SignInChallengeHelper.evaluateNextStep(
                 username = signInContext.username,
-                email = signInContext.username,
                 challengeNameType = response.challengeName,
                 session = response.session,
                 challengeParameters = response.challengeParameters,
@@ -100,7 +99,6 @@ internal object WebAuthnSignInCognitoActions : WebAuthnSignInActions {
 
             SignInChallengeHelper.evaluateNextStep(
                 username = signInContext.username,
-                email = signInContext.username,
                 challengeNameType = ChallengeNameType.WebAuthn,
                 session = signInContext.session,
                 challengeParameters = response.challengeParameters,

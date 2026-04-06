@@ -226,7 +226,6 @@ internal object SignInCognitoActions : SignInActions {
                 if (response != null) {
                     SignInChallengeHelper.evaluateNextStep(
                         username = username,
-                        email = event.signInData.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = response.challengeName,
                         session = response.session,
                         challengeParameters = response.challengeParameters,
