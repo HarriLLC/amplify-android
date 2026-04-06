@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 internal class SignOutUseCase(
     private val stateMachine: AuthStateMachine,
@@ -52,9 +54,38 @@ internal class SignOutUseCase(
             // Continue sign out and clear auth or guest credentials
             is AuthenticationState.SignedIn, is AuthenticationState.SignedOut -> {
                 completeSignOut(
-                    event = createSignOutEvent(options),
+                    event = createSignOutEvent(options = options),
                     sendHubEvent = true
                 )
+            }
+            is AuthenticationState.FederatedToIdentityPool -> {
+                AWSCognitoAuthSignOutResult.FailedSignOut(
+                    InvalidStateException(
+                        "The user is currently federated to identity pool. " +
+                            "You must call clearFederationToIdentityPool to clear credentials."
+                    )
+                )
+            }
+            else -> AWSCognitoAuthSignOutResult.FailedSignOut(InvalidStateException())
+        }
+    }
+
+    suspend fun execute(
+        userId: String,
+        signOutAllUsers: Boolean = false,
+        options: AuthSignOutOptions = AuthSignOutOptions.builder().build()
+    ): AuthSignOutResult {
+        val authState = stateMachine.getCurrentState()
+        return when (authState.authNState) {
+            is AuthenticationState.NotConfigured -> AWSCognitoAuthSignOutResult.CompleteSignOut
+            is AuthenticationState.SignedIn, is AuthenticationState.SignedOut -> {
+                val event = createSignOutEvent(
+                    userId = userId,
+                    signOutAllUsers = signOutAllUsers,
+                    options = options
+                )
+                stateMachine.send(event, userId)
+                completeSignOutForUser(userId, sendHubEvent = true)
             }
             is AuthenticationState.FederatedToIdentityPool -> {
                 AWSCognitoAuthSignOutResult.FailedSignOut(
@@ -121,11 +152,76 @@ internal class SignOutUseCase(
         return result
     }
 
-    private fun createSignOutEvent(options: AuthSignOutOptions): StateMachineEvent = AuthenticationEvent(
+    private suspend fun completeSignOutForUser(userId: String, sendHubEvent: Boolean): AuthSignOutResult {
+        var cancellationException: UserCancelledException? = null
+        val token = com.amplifyframework.statemachine.StateChangeListenerToken()
+
+        return suspendCancellableCoroutine { continuation ->
+            stateMachine.listen(
+                userId,
+                token,
+                { authState ->
+                    if (authState !is AuthState.Configured) return@listen
+
+                    val (authNState, authZState) = authState
+                    when {
+                        authNState is AuthenticationState.SignedOut && authZState is AuthorizationState.Configured -> {
+                            stateMachine.cancel(token)
+                            if (sendHubEvent) {
+                                emitter.sendHubEvent(AuthChannelEventName.SIGNED_OUT.toString())
+                            }
+                            val result = if (authNState.signedOutData.hasError) {
+                                val signedOutData = authNState.signedOutData
+                                AWSCognitoAuthSignOutResult.PartialSignOut(
+                                    hostedUIError = signedOutData.hostedUIErrorData?.let { HostedUIError(it) },
+                                    globalSignOutError = signedOutData.globalSignOutErrorData?.let {
+                                        GlobalSignOutError(it)
+                                    },
+                                    revokeTokenError = signedOutData.revokeTokenErrorData?.let { RevokeTokenError(it) }
+                                )
+                            } else {
+                                AWSCognitoAuthSignOutResult.CompleteSignOut
+                            }
+                            continuation.resume(result)
+                        }
+                        authNState is AuthenticationState.Error -> {
+                            stateMachine.cancel(token)
+                            continuation.resume(
+                                AWSCognitoAuthSignOutResult.FailedSignOut(
+                                    CognitoAuthExceptionConverter.lookup(authNState.exception, "Sign out failed.")
+                                )
+                            )
+                        }
+                        authNState is AuthenticationState.SigningOut -> {
+                            val state = authNState.signOutState
+                            if (state is SignOutState.Error && state.exception is UserCancelledException) {
+                                cancellationException = state.exception
+                            }
+                        }
+                        authNState is AuthenticationState.SignedIn && cancellationException != null -> {
+                            stateMachine.cancel(token)
+                            continuation.resume(
+                                AWSCognitoAuthSignOutResult.FailedSignOut(cancellationException!!)
+                            )
+                        }
+                    }
+                },
+                null
+            )
+        }
+    }
+
+    private fun createSignOutEvent(
+        userId: String = "",
+        signOutAllUsers: Boolean = false,
+        options: AuthSignOutOptions
+    ): StateMachineEvent = AuthenticationEvent(
         AuthenticationEvent.EventType.SignOutRequested(
             SignOutData(
-                options.isGlobalSignOut,
-                (options as? AWSCognitoAuthSignOutOptions)?.browserPackage
+                userId = userId,
+                globalSignOut = options.isGlobalSignOut,
+                browserPackage = (options as? AWSCognitoAuthSignOutOptions)?.browserPackage,
+                signOutAllUsers = signOutAllUsers
             )
         )
     )

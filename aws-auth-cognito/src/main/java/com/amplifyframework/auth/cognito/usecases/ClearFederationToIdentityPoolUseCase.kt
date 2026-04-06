@@ -49,6 +49,26 @@ internal class ClearFederationToIdentityPoolUseCase(
         }
     }
 
+    suspend fun execute(userId: String) {
+        val authState = stateMachine.getCurrentState()
+
+        when {
+            authState.isFederatedToIdentityPool() -> {
+                val event = AuthenticationEvent(
+                    AuthenticationEvent.EventType.ClearFederationToIdentityPool(userId = userId)
+                )
+                stateMachine.send(event)
+                when (val result = signOut.completeSignOut(event = event, sendHubEvent = false)) {
+                    is AWSCognitoAuthSignOutResult.FailedSignOut -> throw result.exception
+                    else -> emitter.sendHubEvent(
+                        AWSCognitoAuthChannelEventName.FEDERATION_TO_IDENTITY_POOL_CLEARED.toString()
+                    )
+                }
+            }
+            else -> throw InvalidStateException("Clearing of federation failed.")
+        }
+    }
+
     private fun AuthState.isFederatedToIdentityPool(): Boolean {
         val authNState = this.authNState
         val authZState = this.authZState

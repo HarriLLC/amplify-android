@@ -305,14 +305,14 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
         onSuccess: Consumer<AuthSession>,
         onError: Consumer<AuthException>
     ) =
-        enqueue(onSuccess, onError) { queueFacade.fetchAuthSession(userId) }
+        enqueue(onSuccess, onError) { useCaseFactory.fetchAuthSession().execute(userId) }
 
     override fun fetchAuthSession(
         userId: String,
         options: AuthFetchSessionOptions,
         onSuccess: Consumer<AuthSession>,
         onError: Consumer<AuthException>
-    ) = enqueue(onSuccess, onError) { queueFacade.fetchAuthSession(userId, options) }
+    ) = enqueue(onSuccess, onError) { useCaseFactory.fetchAuthSession().execute(userId) }
 
     override fun fetchAuthSession(
         options: AuthFetchSessionOptions,
@@ -434,7 +434,7 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
     ) = enqueue(
         onComplete,
         onError = ::throwIt
-    ) { queueFacade.signOut(userId) }
+    ) { useCaseFactory.signOut().execute(userId) }
 
     override fun signOut(onComplete: Consumer<AuthSignOutResult>) = enqueue(
         onComplete,
@@ -448,7 +448,7 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
     ) = enqueue(
         onComplete,
         onError = ::throwIt
-    ) { queueFacade.signOut(userId, options) }
+    ) { useCaseFactory.signOut().execute(userId = userId, options = options) }
 
     override fun deleteUser(onSuccess: Action, onError: Consumer<AuthException>) = enqueue(onSuccess, onError) {
         useCaseFactory.deleteUser().execute()
@@ -562,7 +562,7 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
      * @param onError Error callback
      */
     fun clearFederationToIdentityPool(userId: String, onSuccess: Action, onError: Consumer<AuthException>) =
-        enqueue(onSuccess, onError) { queueFacade.clearFederationToIdentityPool(userId) }
+        enqueue(onSuccess, onError) { useCaseFactory.clearFederationToIdentityPool().execute(userId) }
 
     fun clearFederationToIdentityPool(onSuccess: Action, onError: Consumer<AuthException>) =
         enqueue(onSuccess, onError) { useCaseFactory.clearFederationToIdentityPool().execute() }
