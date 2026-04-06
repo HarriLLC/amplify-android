@@ -54,9 +54,10 @@ internal object AuthorizationCognitoActions : AuthorizationActions {
                     )
                 )
             )
-            logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
-        }
+        )
+        logger.verbose("$id Sending event ${evt.type}")
+        dispatcher.send(evt)
+    }
 
     override fun initializeFetchAuthSession(signedInData: SignedInData) =
         Action<AuthEnvironment>("InitFetchAuthSession") { id, dispatcher ->

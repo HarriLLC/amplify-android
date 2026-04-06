@@ -18,14 +18,12 @@ package com.amplifyframework.auth.cognito.actions
 import aws.sdk.kotlin.services.cognitoidentityprovider.initiateAuth
 import aws.sdk.kotlin.services.cognitoidentityprovider.model.ChallengeNameType
 import aws.sdk.kotlin.services.cognitoidentityprovider.respondToAuthChallenge
-import aws.smithy.kotlin.runtime.util.type
-import com.amplifyframework.AmplifyException
 import com.amplifyframework.auth.cognito.AuthEnvironment
 import com.amplifyframework.auth.cognito.helpers.AuthHelper
 import com.amplifyframework.auth.cognito.helpers.SignInChallengeHelper
 import com.amplifyframework.auth.cognito.helpers.toCognitoType
 import com.amplifyframework.auth.cognito.options.AuthFlowType
-import com.amplifyframework.auth.exceptions.ServiceException
+import com.amplifyframework.auth.cognito.requireIdentityClient
 import com.amplifyframework.statemachine.Action
 import com.amplifyframework.statemachine.codegen.actions.MigrateAuthActions
 import com.amplifyframework.statemachine.codegen.data.SignInMethod
@@ -34,7 +32,6 @@ import com.amplifyframework.statemachine.codegen.events.SignInEvent
 
 internal object MigrateAuthCognitoActions : MigrateAuthActions {
     private const val KEY_USERNAME = "USERNAME"
-    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_PASSWORD = "PASSWORD"
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERID_FOR_SRP = "USER_ID_FOR_SRP"
@@ -51,6 +48,8 @@ internal object MigrateAuthCognitoActions : MigrateAuthActions {
                     configuration.userPool?.appClientSecret
                 )
 
+                val client = cognitoAuthService.requireIdentityClient()
+
                 val authParams = mutableMapOf(KEY_USERNAME to event.username, KEY_PASSWORD to event.password)
                 secretHash?.let { authParams[KEY_SECRET_HASH] = it }
 
@@ -60,7 +59,7 @@ internal object MigrateAuthCognitoActions : MigrateAuthActions {
                 if (event.respondToAuthChallenge?.session != null) {
                     authParams[KEY_ANSWER] = ChallengeNameType.Password.value
 
-                    val response = cognitoAuthService.cognitoIdentityProviderClient?.respondToAuthChallenge {
+                    val response = client.respondToAuthChallenge {
                         clientId = configuration.userPool?.appClient
                         challengeName = ChallengeNameType.SelectChallenge
                         this.challengeResponses = authParams
@@ -70,22 +69,20 @@ internal object MigrateAuthCognitoActions : MigrateAuthActions {
                         encodedContextData?.let { this.userContextData { encodedData = it } }
                     }
 
-                    response?.let {
-                        SignInChallengeHelper.evaluateNextStep(
-                            username = event.username,
-                            email = event.metadata[USER_EMAIL].orEmpty(),
-                            challengeNameType = response.challengeName,
-                            session = response.session,
-                            challengeParameters = response.challengeParameters,
-                            authenticationResult = response.authenticationResult,
-                            signInMethod = SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_AUTH),
-                        )
-                    } ?: throw ServiceException("Sign in failed", AmplifyException.TODO_RECOVERY_SUGGESTION)
+                    val username = AuthHelper.getActiveUsername(event.username, response)
+                    SignInChallengeHelper.evaluateNextStep(
+                        username = username,
+                        challengeNameType = response.challengeName,
+                        session = response.session,
+                        challengeParameters = response.challengeParameters,
+                        authenticationResult = response.authenticationResult,
+                        signInMethod = SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_AUTH)
+                    )
                 } else {
                     if (event.authFlowType == AuthFlowType.USER_AUTH) {
                         authParams[KEY_PREFERRED_CHALLENGE] = KEY_PASSWORD
                     }
-                    val response = cognitoAuthService.cognitoIdentityProviderClient?.initiateAuth {
+                    val response = client.initiateAuth {
                         authFlow = event.authFlowType.toCognitoType()
                         clientId = configuration.userPool?.appClient
                         authParameters = authParams
@@ -94,29 +91,20 @@ internal object MigrateAuthCognitoActions : MigrateAuthActions {
                         encodedContextData?.let { userContextData { encodedData = it } }
                     }
 
-                    response?.let {
-                        val username = AuthHelper.getActiveUsername(
-                            username = event.username,
-                            alternateUsername = response.challengeParameters?.get(KEY_USERNAME),
-                            userIDForSRP = response.challengeParameters?.get(
-                                KEY_USERID_FOR_SRP
-                            )
-                        )
-                        val signInMethod = if (event.authFlowType == AuthFlowType.USER_AUTH) {
-                            SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_AUTH)
-                        } else {
-                            SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_SRP_AUTH)
-                        }
-                        SignInChallengeHelper.evaluateNextStep(
-                            username = username,
-                            email = event.metadata[USER_EMAIL].orEmpty(),
-                            challengeNameType = response.challengeName,
-                            session = response.session,
-                            challengeParameters = response.challengeParameters,
-                            authenticationResult = response.authenticationResult,
-                            signInMethod = signInMethod
-                        )
-                    } ?: throw ServiceException("Sign in failed", AmplifyException.TODO_RECOVERY_SUGGESTION)
+                    val username = AuthHelper.getActiveUsername(event.username, response)
+                    val signInMethod = if (event.authFlowType == AuthFlowType.USER_AUTH) {
+                        SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_AUTH)
+                    } else {
+                        SignInMethod.ApiBased(SignInMethod.ApiBased.AuthType.USER_SRP_AUTH)
+                    }
+                    SignInChallengeHelper.evaluateNextStep(
+                        username = username,
+                        challengeNameType = response.challengeName,
+                        session = response.session,
+                        challengeParameters = response.challengeParameters,
+                        authenticationResult = response.authenticationResult,
+                        signInMethod = signInMethod
+                    )
                 }
             } catch (e: Exception) {
                 val errorEvent = SignInEvent(SignInEvent.EventType.ThrowError(e))

@@ -18,8 +18,18 @@ import android.content.Context
 import net.zetetic.database.sqlcipher.SQLiteDatabase
 import net.zetetic.database.sqlcipher.SQLiteOpenHelper
 
-internal class CloudWatchDatabaseHelper(context: Context, passphrase: String) :
-    SQLiteOpenHelper(context, DATABASE_NAME, passphrase, null, DATABASE_VERSION, 0, null, null, false) {
+internal class CloudWatchDatabaseHelper(context: Context, databasePassphrase: String) :
+    SQLiteOpenHelper(
+        context,
+        DATABASE_NAME,
+        databasePassphrase,
+        null,
+        DATABASE_VERSION,
+        0,
+        null,
+        null,
+        false
+    ) {
 
     companion object {
         internal const val DATABASE_NAME = "amplify.logging.cloudwatch.db"

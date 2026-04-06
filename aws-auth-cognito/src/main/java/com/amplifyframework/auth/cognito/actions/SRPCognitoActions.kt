@@ -26,6 +26,7 @@ import com.amplifyframework.auth.cognito.helpers.SRPHelper
 import com.amplifyframework.auth.cognito.helpers.SignInChallengeHelper
 import com.amplifyframework.auth.cognito.helpers.toCognitoType
 import com.amplifyframework.auth.cognito.options.AuthFlowType
+import com.amplifyframework.auth.cognito.requireIdentityClient
 import com.amplifyframework.auth.exceptions.ServiceException
 import com.amplifyframework.auth.exceptions.UnknownException
 import com.amplifyframework.statemachine.Action
@@ -49,7 +50,6 @@ internal object SRPCognitoActions : SRPActions {
     private const val KEY_USER_ID_FOR_SRP = "USER_ID_FOR_SRP"
     private const val KEY_SECRET_HASH = "SECRET_HASH"
     private const val KEY_USERNAME = "USERNAME"
-    private const val USER_EMAIL = "USER_EMAIL"
     private const val KEY_USERID_FOR_SRP = "USER_ID_FOR_SRP"
     private const val KEY_DEVICE_KEY = "DEVICE_KEY"
     private const val KEY_CHALLENGE_NAME = "CHALLENGE_NAME"
@@ -62,6 +62,8 @@ internal object SRPCognitoActions : SRPActions {
             logger.verbose("$id Starting execution")
             val evt = try {
                 srpHelper = SRPHelper(event.password)
+
+                val client = cognitoAuthService.requireIdentityClient()
 
                 val secretHash = AuthHelper.getSecretHash(
                     event.username,
@@ -78,10 +80,9 @@ internal object SRPCognitoActions : SRPActions {
                 val pinpointEndpointId = getPinpointEndpointId()
 
                 if (event.respondToAuthChallenge?.session != null) {
-
                     authParams[KEY_ANSWER] = ChallengeNameType.PasswordSrp.value
 
-                    val response = cognitoAuthService.cognitoIdentityProviderClient?.respondToAuthChallenge {
+                    val response = client.respondToAuthChallenge {
                         clientId = configuration.userPool?.appClient
                         challengeName = ChallengeNameType.SelectChallenge
                         this.challengeResponses = authParams
@@ -92,19 +93,13 @@ internal object SRPCognitoActions : SRPActions {
                     }
 
                     val updatedDeviceMetadata = getDeviceMetadata(
-                        AuthHelper.getActiveUsername(
-                            username = event.username,
-                            alternateUsername = response?.challengeParameters?.get(KEY_USERNAME),
-                            userIDForSRP = response?.challengeParameters?.get(
-                                KEY_USERID_FOR_SRP
-                            )
-                        )
+                        AuthHelper.getActiveUsername(event.username, response)
                     )
 
                     parseResponseChallenge(
-                        challengeNameType = response?.challengeName,
-                        challengeParams = response?.challengeParameters,
-                        session = response?.session,
+                        challengeNameType = response.challengeName,
+                        challengeParams = response.challengeParameters,
+                        session = response.session,
                         updatedDeviceMetadata = updatedDeviceMetadata,
                         metadata = event.metadata
                     )
@@ -112,7 +107,7 @@ internal object SRPCognitoActions : SRPActions {
                     if (event.authFlowType == AuthFlowType.USER_AUTH) {
                         authParams[KEY_PREFERRED_CHALLENGE] = KEY_PASSWORD_SRP
                     }
-                    val initiateAuthResponse = cognitoAuthService.cognitoIdentityProviderClient?.initiateAuth {
+                    val response = client.initiateAuth {
                         authFlow = event.authFlowType.toCognitoType()
                         clientId = configuration.userPool?.appClient
                         authParameters = authParams
@@ -120,21 +115,14 @@ internal object SRPCognitoActions : SRPActions {
                         pinpointEndpointId?.let { analyticsMetadata { analyticsEndpointId = it } }
                         encodedContextData?.let { userContextData { encodedData = it } }
                     }
-
                     val updatedDeviceMetadata = getDeviceMetadata(
-                        AuthHelper.getActiveUsername(
-                            username = event.username,
-                            alternateUsername = initiateAuthResponse?.challengeParameters?.get(KEY_USERNAME),
-                            userIDForSRP = initiateAuthResponse?.challengeParameters?.get(
-                                KEY_USERID_FOR_SRP
-                            )
-                        )
+                        AuthHelper.getActiveUsername(event.username, response)
                     )
 
                     parseResponseChallenge(
-                        challengeNameType = initiateAuthResponse?.challengeName,
-                        challengeParams = initiateAuthResponse?.challengeParameters,
-                        session = initiateAuthResponse?.session,
+                        challengeNameType = response.challengeName,
+                        challengeParams = response.challengeParameters,
+                        session = response.session,
                         updatedDeviceMetadata = updatedDeviceMetadata,
                         metadata = event.metadata
                     )
@@ -156,28 +144,27 @@ internal object SRPCognitoActions : SRPActions {
         session: String?,
         updatedDeviceMetadata: DeviceMetadata.Metadata?,
         metadata: Map<String, String>
-    ): SRPEvent =
-        when (challengeNameType) {
-            ChallengeNameType.PasswordVerifier -> {
-                challengeParams?.let { params ->
-                    val updatedChallengeParams = updatedDeviceMetadata?.deviceKey?.let {
-                        params.plus(KEY_DEVICE_KEY to it)
-                    } ?: params
+    ): SRPEvent = when (challengeNameType) {
+        ChallengeNameType.PasswordVerifier -> {
+            challengeParams?.let { params ->
+                val updatedChallengeParams = updatedDeviceMetadata?.deviceKey?.let {
+                    params.plus(KEY_DEVICE_KEY to it)
+                } ?: params
 
-                    SRPEvent(
-                        SRPEvent.EventType.RespondPasswordVerifier(
-                            updatedChallengeParams,
-                            metadata,
-                            session
-                        )
+                SRPEvent(
+                    SRPEvent.EventType.RespondPasswordVerifier(
+                        updatedChallengeParams,
+                        metadata,
+                        session
                     )
-                } ?: throw ServiceException(
-                    "Auth challenge parameters are empty.",
-                    AmplifyException.TODO_RECOVERY_SUGGESTION
                 )
-            }
-            else -> throw UnknownException(cause = Exception("Challenge type not supported for this flow."))
+            } ?: throw ServiceException(
+                "Auth challenge parameters are empty.",
+                AmplifyException.TODO_RECOVERY_SUGGESTION
+            )
         }
+        else -> throw UnknownException(cause = Exception("Challenge type not supported for this flow."))
+    }
 
     override fun initiateSRPWithCustomAuthAction(event: SRPEvent.EventType.InitiateSRPWithCustom): Action =
         Action<AuthEnvironment>("InitSRPCustomAuth") { id, dispatcher ->
@@ -249,94 +236,92 @@ internal object SRPCognitoActions : SRPActions {
         metadata: Map<String, String>,
         session: String?,
         signInMethod: SignInMethod
-    ) =
-        Action<AuthEnvironment>("VerifyPasswordSRP") { id, dispatcher ->
-            logger.verbose("$id Starting execution")
-            val evt = try {
-                val salt = challengeParameters.getValue(KEY_SALT)
-                val secretBlock = challengeParameters.getValue(KEY_SECRET_BLOCK)
-                val srpB = challengeParameters.getValue(KEY_SRP_B)
-                val username = challengeParameters.getValue(KEY_USERNAME)
-                val userId = challengeParameters.getValue(KEY_USER_ID_FOR_SRP)
-                val deviceKey = challengeParameters.getOrDefault(KEY_DEVICE_KEY, "")
+    ) = Action<AuthEnvironment>("VerifyPasswordSRP") { id, dispatcher ->
+        logger.verbose("$id Starting execution")
+        val evt = try {
+            val salt = challengeParameters.getValue(KEY_SALT)
+            val secretBlock = challengeParameters.getValue(KEY_SECRET_BLOCK)
+            val srpB = challengeParameters.getValue(KEY_SRP_B)
+            val username = challengeParameters.getValue(KEY_USERNAME)
+            val userId = challengeParameters.getValue(KEY_USER_ID_FOR_SRP)
+            val deviceKey = challengeParameters.getOrDefault(KEY_DEVICE_KEY, "")
 
-                srpHelper.setUserPoolParams(userId, configuration.userPool?.poolId!!)
+            srpHelper.setUserPoolParams(userId, configuration.userPool?.poolId!!)
 
-                val secretHash = AuthHelper.getSecretHash(
-                    username,
-                    configuration.userPool.appClient,
-                    configuration.userPool.appClientSecret
-                )
+            val secretHash = AuthHelper.getSecretHash(
+                username,
+                configuration.userPool.appClient,
+                configuration.userPool.appClientSecret
+            )
 
-                val challengeParams = mutableMapOf(
-                    KEY_USERNAME to username,
-                    KEY_PASSWORD_CLAIM_SECRET_BLOCK to secretBlock,
-                    KEY_PASSWORD_CLAIM_SIGNATURE to srpHelper.getSignature(salt, srpB, secretBlock),
-                    KEY_TIMESTAMP to srpHelper.dateString
-                )
-                secretHash?.let { challengeParams[KEY_SECRET_HASH] = it }
-                challengeParams[KEY_DEVICE_KEY] = deviceKey
+            val challengeParams = mutableMapOf(
+                KEY_USERNAME to username,
+                KEY_PASSWORD_CLAIM_SECRET_BLOCK to secretBlock,
+                KEY_PASSWORD_CLAIM_SIGNATURE to srpHelper.getSignature(salt, srpB, secretBlock),
+                KEY_TIMESTAMP to srpHelper.dateString
+            )
+            secretHash?.let { challengeParams[KEY_SECRET_HASH] = it }
+            challengeParams[KEY_DEVICE_KEY] = deviceKey
 
-                val encodedContextData = getUserContextData(username)
-                val pinpointEndpointId = getPinpointEndpointId()
+            val encodedContextData = getUserContextData(username)
+            val pinpointEndpointId = getPinpointEndpointId()
 
-                val response = cognitoAuthService.cognitoIdentityProviderClient?.respondToAuthChallenge {
-                    challengeName = ChallengeNameType.PasswordVerifier
-                    clientId = configuration.userPool.appClient
-                    challengeResponses = challengeParams
-                    clientMetadata = metadata
-                    this.session = session
-                    pinpointEndpointId?.let { analyticsMetadata { analyticsEndpointId = it } }
-                    encodedContextData?.let { userContextData { encodedData = it } }
-                }
-                if (response != null) {
-                    SignInChallengeHelper.evaluateNextStep(
-                        username = username,
-                        email = metadata[USER_EMAIL].orEmpty(),
-                        challengeNameType = response.challengeName,
-                        session = response.session,
-                        challengeParameters = response.challengeParameters,
-                        authenticationResult = response.authenticationResult,
-                        signInMethod = signInMethod
-                    )
-                } else {
-                    throw ServiceException(
-                        "Sign in failed",
-                        AmplifyException.TODO_RECOVERY_SUGGESTION
-                    )
-                }
-            } catch (e: Exception) {
-                if (e is ResourceNotFoundException) {
-                    val challengeParams: MutableMap<String, String> = challengeParameters.toMutableMap()
-                    challengeParams.remove(KEY_DEVICE_KEY)
-                    credentialStoreClient.clearCredentials(
-                        CredentialType.Device(
-                            challengeParams.getValue(
-                                KEY_USERNAME
-                            )
-                        )
-                    )
-                    SRPEvent(
-                        SRPEvent.EventType.RetryRespondPasswordVerifier(
-                            challengeParams,
-                            metadata,
-                            session,
-                            signInMethod
-                        )
-                    )
-                } else {
-                    val errorEvent = SRPEvent(SRPEvent.EventType.ThrowPasswordVerifierError(e))
-                    logger.verbose("$id Sending event ${errorEvent.type}")
-                    dispatcher.send(errorEvent)
-
-                    val errorEvent2 = SignInEvent(SignInEvent.EventType.ThrowError(e))
-                    logger.verbose("$id Sending event ${errorEvent.type}")
-                    dispatcher.send(errorEvent2)
-
-                    AuthenticationEvent(AuthenticationEvent.EventType.CancelSignIn())
-                }
+            val response = cognitoAuthService.cognitoIdentityProviderClient?.respondToAuthChallenge {
+                challengeName = ChallengeNameType.PasswordVerifier
+                clientId = configuration.userPool.appClient
+                challengeResponses = challengeParams
+                clientMetadata = metadata
+                this.session = session
+                pinpointEndpointId?.let { analyticsMetadata { analyticsEndpointId = it } }
+                encodedContextData?.let { userContextData { encodedData = it } }
             }
-            logger.verbose("$id Sending event ${evt.type}")
-            dispatcher.send(evt)
+            if (response != null) {
+                SignInChallengeHelper.evaluateNextStep(
+                    username = username,
+                    challengeNameType = response.challengeName,
+                    session = response.session,
+                    challengeParameters = response.challengeParameters,
+                    authenticationResult = response.authenticationResult,
+                    signInMethod = signInMethod
+                )
+            } else {
+                throw ServiceException(
+                    "Sign in failed",
+                    AmplifyException.TODO_RECOVERY_SUGGESTION
+                )
+            }
+        } catch (e: Exception) {
+            if (e is ResourceNotFoundException) {
+                val challengeParams: MutableMap<String, String> = challengeParameters.toMutableMap()
+                challengeParams.remove(KEY_DEVICE_KEY)
+                credentialStoreClient.clearCredentials(
+                    CredentialType.Device(
+                        challengeParams.getValue(
+                            KEY_USERNAME
+                        )
+                    )
+                )
+                SRPEvent(
+                    SRPEvent.EventType.RetryRespondPasswordVerifier(
+                        challengeParams,
+                        metadata,
+                        session,
+                        signInMethod
+                    )
+                )
+            } else {
+                val errorEvent = SRPEvent(SRPEvent.EventType.ThrowPasswordVerifierError(e))
+                logger.verbose("$id Sending event ${errorEvent.type}")
+                dispatcher.send(errorEvent)
+
+                val errorEvent2 = SignInEvent(SignInEvent.EventType.ThrowError(e))
+                logger.verbose("$id Sending event ${errorEvent.type}")
+                dispatcher.send(errorEvent2)
+
+                AuthenticationEvent(AuthenticationEvent.EventType.CancelSignIn())
+            }
         }
+        logger.verbose("$id Sending event ${evt.type}")
+        dispatcher.send(evt)
+    }
 }

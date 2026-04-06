@@ -32,7 +32,11 @@ import com.amplifyframework.auth.cognito.actions.SignOutCognitoActions
 import com.amplifyframework.auth.cognito.actions.SignUpCognitoActions
 import com.amplifyframework.auth.cognito.actions.UserAuthSignInCognitoActions
 import com.amplifyframework.auth.cognito.actions.WebAuthnSignInCognitoActions
+import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidUserPoolConfigurationException
 import com.amplifyframework.auth.exceptions.InvalidStateException
+import com.amplifyframework.auth.exceptions.SignedOutException
+import com.amplifyframework.statemachine.Environment
+import com.amplifyframework.statemachine.StateMachine
 import com.amplifyframework.statemachine.StateMachineForAuth
 import com.amplifyframework.statemachine.StateMachineResolver
 import com.amplifyframework.statemachine.codegen.states.AuthState
@@ -130,10 +134,24 @@ internal class AuthStateMachine(
 }
 
 // This function throws if the state machine is *not* in the required state
-internal suspend inline fun <reified T : AuthenticationState> AuthStateMachine.requireAuthenticationState() {
-    if (getCurrentState().authNState !is T) {
-        throw InvalidStateException(
-            "Auth State Machine is not in the required authentication state: ${T::class.simpleName}"
-        )
+internal suspend inline fun <reified T : AuthenticationState> AuthStateMachine.requireAuthenticationState(): T {
+    val currentState = getCurrentState()
+    return currentState.authNState as? T ?: throw InvalidStateException(
+        "Auth State Machine is not in the required authentication state: ${T::class.simpleName}"
+    )
+}
+
+// Returns the SignedInState or throws SignedOutException or InvalidStateException
+internal suspend fun AuthStateMachine.requireSignedInState(): AuthenticationState.SignedIn =
+    when (val state = getCurrentState().authNState) {
+        is AuthenticationState.SignedIn -> state
+        is AuthenticationState.SignedOut -> throw SignedOutException()
+        else -> throw InvalidStateException()
+    }
+
+// Throws InvalidUserPoolConfigurationException if the authentication state is NotConfigured
+internal suspend fun AuthStateMachine.throwIfNotConfigured() {
+    if (getCurrentState().authNState is AuthenticationState.NotConfigured) {
+        throw InvalidUserPoolConfigurationException()
     }
 }

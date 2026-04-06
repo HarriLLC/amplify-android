@@ -45,7 +45,7 @@ class EncryptedKeyValueRepository @VisibleForTesting constructor(
         fileFactory = { dir, fileName -> File(dir, fileName) }
     )
 
-    private val sharedPreferences by lazy { getOrCreateSharedPreferences() }
+    internal val sharedPreferences by lazy { getOrCreateSharedPreferences() }
 
     override fun put(dataKey: String, value: String?) = edit { putString(dataKey, value) }
     override fun get(dataKey: String): String? = sharedPreferences.getString(dataKey, null)
@@ -68,7 +68,7 @@ class EncryptedKeyValueRepository @VisibleForTesting constructor(
 
     private fun getOrCreateSharedPreferences(): SharedPreferences {
         val identifier = getInstallationIdentifier()
-        return if (identifier.startsWith(amplifyIdentifierPrefix)) {
+        return if (identifier.startsWith(AMPLIFY_IDENTIFIER_PREFIX)) {
             // This repository was encrypted with the amplify master key
             openKeystoreWithAmplifyMasterKey(identifier)
         } else {
@@ -113,7 +113,9 @@ class EncryptedKeyValueRepository @VisibleForTesting constructor(
 
     private fun getSharedPreferencesOrNull(fileName: String, key: String) = try {
         getSharedPreferencesOrThrow(fileName = fileName, key = key)
-    } catch (e: Exception) { null }
+    } catch (e: Exception) {
+        null
+    }
 
     private fun getSharedPreferencesOrThrow(fileName: String, key: String): SharedPreferences =
         EncryptedSharedPreferences.create(
@@ -180,7 +182,7 @@ class EncryptedKeyValueRepository @VisibleForTesting constructor(
      * Creates a new installation identifier for the install
      */
     private fun createInstallationIdentifier(identifierFile: File) =
-        "$amplifyIdentifierPrefix${UUID.randomUUID()}".also {
+        "$AMPLIFY_IDENTIFIER_PREFIX${UUID.randomUUID()}".also {
             writeInstallationIdentifier(identifierFile, it)
         }
 
@@ -213,6 +215,6 @@ class EncryptedKeyValueRepository @VisibleForTesting constructor(
 
         // This prefix is used to identify repositories encrypted with the amplifyMasterKey instead of the
         // defaultMasterKey
-        @VisibleForTesting internal const val amplifyIdentifierPrefix = "__amplify__"
+        @VisibleForTesting internal const val AMPLIFY_IDENTIFIER_PREFIX = "__amplify__"
     }
 }
