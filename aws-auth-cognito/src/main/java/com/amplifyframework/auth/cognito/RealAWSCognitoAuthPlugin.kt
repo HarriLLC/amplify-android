@@ -934,34 +934,6 @@ internal class RealAWSCognitoAuthPlugin(
         )
     }
 
-    fun clearFederationToIdentityPool(userId: String, onSuccess: Action, onError: Consumer<AuthException>) {
-        authStateMachine.getCurrentState(userId) { authState ->
-            val authNState = authState.authNState
-            val authZState = authState.authZState
-            when {
-                authState is AuthState.Configured &&
-                        (
-                                authNState is AuthenticationState.FederatedToIdentityPool &&
-                                        authZState is AuthorizationState.SessionEstablished
-                                ) ||
-                        (
-                                authZState is AuthorizationState.Error &&
-                                        authZState.exception is SessionError &&
-                                        authZState.exception.amplifyCredential is AmplifyCredential.IdentityPoolFederated
-                                ) -> {
-                    val event =
-                        AuthenticationEvent(AuthenticationEvent.EventType.ClearFederationToIdentityPool(userId = userId))
-                    authStateMachine.send(event)
-                    _clearFederationToIdentityPool(onSuccess, onError)
-                }
-
-                else -> {
-                    onError.accept(InvalidStateException("Clearing of federation failed."))
-                }
-            }
-        }
-    }
-
     private fun sendHubEvent(eventName: String) {
         Amplify.Hub.publish(HubChannel.AUTH, HubEvent.create(eventName))
     }

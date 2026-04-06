@@ -133,13 +133,4 @@ internal class KotlinAuthFacadeInternal(private val delegate: RealAWSCognitoAuth
             delegate.signOut(userId, options) { continuation.resume(it) }
         }
 
-    suspend fun clearFederationToIdentityPool(userId: String) {
-        return suspendCoroutine { continuation ->
-            delegate.clearFederationToIdentityPool(
-                userId,
-                { continuation.resume(Unit) },
-                { continuation.resumeWithException(it) }
-            )
-        }
-    }
 }
