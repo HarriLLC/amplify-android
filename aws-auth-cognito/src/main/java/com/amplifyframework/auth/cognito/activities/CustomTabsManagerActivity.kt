@@ -46,6 +46,14 @@ internal class CustomTabsManagerActivity : Activity() {
          * stack underneath the Chrome tab where they are going through the HostedUI flow.
          */
         if (!customTabsLaunched) {
+            if (customTabsIntent == null) {
+                // Custom tabs intent was lost (e.g. process death during OAuth flow).
+                // Cannot re-launch the browser, so finish gracefully. The auth redirect
+                // is handled separately by HostedUIRedirectActivity.
+                Log.d(TAG, "Custom tabs intent lost after process death, finishing.")
+                finish()
+                return
+            }
             startActivity(customTabsIntent)
             customTabsLaunched = true
             return
