@@ -620,7 +620,7 @@ public final class SynchronousAuth {
      */
     public AuthSignOutResult signOut(AuthSignOutOptions options) throws AuthException {
         return Await.<AuthSignOutResult, AuthException>result(timeoutMs, (onResult, onError) ->
-                asyncDelegate.signOut(options, onResult)
+                asyncDelegate.signOut(onResult)
         );
     }
 
