@@ -116,10 +116,7 @@ internal class CustomTabsManagerActivity : Activity() {
          * @param context the package context for the app.
          * @param customTabsIntent the intent for the Chrome custom tab.
          */
-        fun createStartIntent(
-            context: Context,
-            customTabsIntent: Intent?
-        ): Intent {
+        fun createStartIntent(context: Context, customTabsIntent: Intent?): Intent {
             val intent = createBaseIntent(context)
             intent.putExtra(CUSTOM_TABS_INTENT_KEY, customTabsIntent)
             return intent
@@ -139,8 +136,6 @@ internal class CustomTabsManagerActivity : Activity() {
             return intent
         }
 
-        private fun createBaseIntent(context: Context): Intent {
-            return Intent(context, CustomTabsManagerActivity::class.java)
-        }
+        private fun createBaseIntent(context: Context): Intent = Intent(context, CustomTabsManagerActivity::class.java)
     }
 }

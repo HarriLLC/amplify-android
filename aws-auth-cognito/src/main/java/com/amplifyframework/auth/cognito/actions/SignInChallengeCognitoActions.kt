@@ -42,7 +42,7 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
     override fun verifyChallengeAuthAction(
         answer: String,
         metadata: Map<String, String>,
-        attributes: List<AuthUserAttribute>,
+        userAttributes: List<AuthUserAttribute>,
         challenge: AuthChallenge,
         signInMethod: SignInMethod
     ): Action = Action<AuthEnvironment>("VerifySignInChallenge") { id, dispatcher ->
@@ -55,7 +55,6 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             if (isMfaSetupSelectionChallenge(challenge)) {
                 val event = SignInChallengeHelper.evaluateNextStep(
                     username = username ?: "",
-                    email = metadata[USER_EMAIL].orEmpty(),
                     challengeNameType = ChallengeNameType.MfaSetup,
                     session = challenge.session,
                     challengeParameters = mapOf("MFAS_CAN_SETUP" to answer),
@@ -78,7 +77,7 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             }
 
             challengeResponses.putAll(
-                attributes.map {
+                userAttributes.map {
                     Pair("${KEY_PREFIX_USER_ATTRIBUTE}${it.key.keyString}", it.value)
                 }
             )
@@ -104,7 +103,6 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
             response?.let {
                 SignInChallengeHelper.evaluateNextStep(
                     username = username ?: "",
-                    metadata[USER_EMAIL].orEmpty(),
                     challengeNameType = response.challengeName,
                     session = response.session,
                     challengeParameters = response.challengeParameters,
@@ -125,41 +123,39 @@ internal object SignInChallengeCognitoActions : SignInChallengeActions {
                     SignInChallengeEvent.EventType.RetryVerifyChallengeAnswer(
                         answer,
                         metadata,
-                        attributes,
+                        userAttributes,
                         challenge
                     )
                 )
             } else {
-                SignInChallengeEvent(SignInChallengeEvent.EventType.ThrowError(e, challenge, true))
+                SignInChallengeEvent(SignInChallengeEvent.EventType.ThrowError(e, challenge))
             }
         }
         logger.verbose("$id Sending event ${evt.type}")
         dispatcher.send(evt)
     }
 
-    private fun getChallengeResponseKey(challenge: AuthChallenge): String? {
-        return when (challenge.challengeNameType) {
-            is ChallengeNameType.SmsMfa -> "SMS_MFA_CODE"
-            is ChallengeNameType.EmailOtp -> "EMAIL_OTP_CODE"
-            is ChallengeNameType.SmsOtp -> "SMS_OTP_CODE"
-            is ChallengeNameType.NewPasswordRequired -> "NEW_PASSWORD"
-            is ChallengeNameType.CustomChallenge,
-            is ChallengeNameType.SelectMfaType,
-            is ChallengeNameType.SelectChallenge -> {
-                "ANSWER"
-            }
-            is ChallengeNameType.SoftwareTokenMfa -> "SOFTWARE_TOKEN_MFA_CODE"
-            // TOTP is not part of this because, it follows a completely different setup path
-            is ChallengeNameType.MfaSetup -> {
-                if (isMfaSetupSelectionChallenge(challenge)) {
-                    "MFA_SETUP"
-                } else if (isEmailMfaSetupChallenge(challenge)) {
-                    "EMAIL"
-                } else {
-                    null
-                }
-            }
-            else -> null
+    private fun getChallengeResponseKey(challenge: AuthChallenge): String? = when (challenge.challengeNameType) {
+        is ChallengeNameType.SmsMfa -> "SMS_MFA_CODE"
+        is ChallengeNameType.EmailOtp -> "EMAIL_OTP_CODE"
+        is ChallengeNameType.SmsOtp -> "SMS_OTP_CODE"
+        is ChallengeNameType.NewPasswordRequired -> "NEW_PASSWORD"
+        is ChallengeNameType.CustomChallenge,
+        is ChallengeNameType.SelectMfaType,
+        is ChallengeNameType.SelectChallenge -> {
+            "ANSWER"
         }
+        is ChallengeNameType.SoftwareTokenMfa -> "SOFTWARE_TOKEN_MFA_CODE"
+        // TOTP is not part of this because, it follows a completely different setup path
+        is ChallengeNameType.MfaSetup -> {
+            if (isMfaSetupSelectionChallenge(challenge)) {
+                "MFA_SETUP"
+            } else if (isEmailMfaSetupChallenge(challenge)) {
+                "EMAIL"
+            } else {
+                null
+            }
+        }
+        else -> null
     }
 }

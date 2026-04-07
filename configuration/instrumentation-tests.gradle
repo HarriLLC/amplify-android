@@ -10,7 +10,13 @@ def module_backends = [
         'aws-analytics-pinpoint': 'NONE',
         'aws-predictions'       : 'NONE',
         'core'                  : 'NONE',
-        'aws-auth-cognito'      : 'AuthIntegrationTests'
+        'aws-auth-cognito'      : 'AuthIntegrationTests',
+        'aws-sdk-appsync-events': 'NONE',
+        'aws-kinesis'           : 'KinesisIntegrationTests'
+]
+
+def module_subpaths = [
+        'aws-sdk-appsync-events': 'appsync/'
 ]
 
 def canaryTests = [
@@ -20,26 +26,20 @@ def canaryTests = [
         'aws-geo-location': ['com.amplifyframework.geo.location.GeoCanaryTest', 'com.amplifyframework.geo.location.GeoCanaryTestGen2'],
         'aws-predictions': ['com.amplifyframework.predictions.aws.PredictionsCanaryTest'],
 //      'aws-push-notifications-pinpoint': ['com.amplifyframework.pushnotifications.pinpoint.NotificationsCanaryTest'],
-        'aws-storage-s3': ['com.amplifyframework.storage.s3.StorageCanaryTest', 'com.amplifyframework.storage.s3.StorageCanaryTestGen2']
+        'aws-storage-s3': ['com.amplifyframework.storage.s3.StorageCanaryTest', 'com.amplifyframework.storage.s3.StorageCanaryTestGen2'],
+        'aws-kinesis': ['com.amplifyframework.kinesis.KinesisDataStreamsInstrumentationTest']
 ]
 
 subprojects {
     afterEvaluate { project ->
         if (module_backends.containsKey(project.name)) {
+            def moduleWithSubPath = module_subpaths.get(project.name) ?
+                    module_subpaths.get(project.name) + project.name : project.name
             task runTestsInDeviceFarm {
                 doLast {
                     exec {
                         commandLine("$rootDir.path/scripts/run_test_in_devicefarm.sh")
-                        args([project.name])
-                    }
-                }
-            }
-            task runNightlyTestsInDeviceFarmPool {
-                dependsOn(assembleAndroidTest)
-                doLast {
-                    exec {
-                        commandLine("$rootDir.path/scripts/run_nightly_tests_in_devicefarm_pool.sh")
-                        args([project.name])
+                        args([moduleWithSubPath])
                     }
                 }
             }

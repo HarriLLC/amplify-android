@@ -19,7 +19,6 @@ import aws.sdk.kotlin.services.cognitoidentityprovider.model.GlobalSignOutReques
 import aws.sdk.kotlin.services.cognitoidentityprovider.model.RevokeTokenRequest
 import com.amplifyframework.auth.cognito.AuthEnvironment
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidOauthConfigurationException
-import com.amplifyframework.auth.cognito.helpers.JWTParser
 import com.amplifyframework.statemachine.Action
 import com.amplifyframework.statemachine.codegen.actions.SignOutActions
 import com.amplifyframework.statemachine.codegen.data.DeviceMetadata
@@ -76,7 +75,7 @@ internal object SignOutCognitoActions : SignOutActions {
             val accessToken = event.signedInData.cognitoUserPoolTokens.accessToken
             val evt = try {
                 cognitoAuthService.cognitoIdentityProviderClient?.globalSignOut(
-                    GlobalSignOutRequest { this.accessToken = accessToken }
+                    GlobalSignOutRequest { this.accessToken = accessToken?.tokenValue }
                 )
                 SignOutEvent(
                     SignOutEvent.EventType.RevokeToken(userId, event.signedInData, hostedUIErrorData = event.hostedUIErrorData)
@@ -84,7 +83,7 @@ internal object SignOutCognitoActions : SignOutActions {
             } catch (e: Exception) {
                 logger.warn("Failed to sign out globally.", e)
                 val globalSignOutErrorData = GlobalSignOutErrorData(
-                    accessToken = accessToken,
+                    accessToken = accessToken?.tokenValue,
                     error = e
                 )
                 SignOutEvent(
@@ -107,20 +106,20 @@ internal object SignOutCognitoActions : SignOutActions {
             val refreshToken = event.signedInData.cognitoUserPoolTokens.refreshToken
             val evt = try {
                 // Check for "origin_jti" claim in access token, else skip revoking
-                if (accessToken?.let { JWTParser.hasClaim(it, "origin_jti") } == true) {
+                if (accessToken?.tokenRevocationId != null) {
                     cognitoAuthService.cognitoIdentityProviderClient?.revokeToken(
                         RevokeTokenRequest {
                             clientId = configuration.userPool?.appClient
                             clientSecret = configuration.userPool?.appClientSecret
-                            token = refreshToken
+                            token = refreshToken?.tokenValue
                         }
                     )
                     SignOutEvent(SignOutEvent.EventType.SignOutLocally(event.userId, event.signedInData, event.hostedUIErrorData))
                 } else {
                     logger.debug("Access Token does not contain `origin_jti` claim. Skip revoking tokens.")
                     val error = RevokeTokenErrorData(
-                        refreshToken = refreshToken,
-                        error = Exception("Access Token does not contain `origin_jti` claim. Skip revoking tokens."),
+                        refreshToken = refreshToken?.tokenValue,
+                        error = Exception("Access Token does not contain `origin_jti` claim. Skip revoking tokens.")
                     )
 
                     SignOutEvent(
@@ -136,7 +135,7 @@ internal object SignOutCognitoActions : SignOutActions {
             } catch (e: Exception) {
                 logger.warn("Failed to revoke tokens.", e)
                 val error = RevokeTokenErrorData(
-                    refreshToken = refreshToken,
+                    refreshToken = refreshToken?.tokenValue,
                     error = e
                 )
 
@@ -159,7 +158,7 @@ internal object SignOutCognitoActions : SignOutActions {
             logger.verbose("$id Starting execution")
 
             val error = RevokeTokenErrorData(
-                refreshToken = event.signedInData.cognitoUserPoolTokens.refreshToken,
+                refreshToken = event.signedInData.cognitoUserPoolTokens.refreshToken?.tokenValue,
                 error = Exception("RevokeToken not attempted because GlobalSignOut failed.")
             )
 

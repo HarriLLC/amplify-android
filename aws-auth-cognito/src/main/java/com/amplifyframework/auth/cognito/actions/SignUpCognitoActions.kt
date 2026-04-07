@@ -19,15 +19,14 @@ import aws.sdk.kotlin.services.cognitoidentityprovider.confirmSignUp
 import aws.sdk.kotlin.services.cognitoidentityprovider.model.AnalyticsMetadataType
 import aws.sdk.kotlin.services.cognitoidentityprovider.model.AttributeType
 import aws.sdk.kotlin.services.cognitoidentityprovider.signUp
-import com.amplifyframework.auth.AuthCodeDeliveryDetails
 import com.amplifyframework.auth.cognito.AuthEnvironment
 import com.amplifyframework.auth.cognito.helpers.AuthHelper
+import com.amplifyframework.auth.cognito.util.toAuthCodeDeliveryDetails
 import com.amplifyframework.auth.result.AuthSignUpResult
 import com.amplifyframework.auth.result.step.AuthNextSignUpStep
 import com.amplifyframework.auth.result.step.AuthSignUpStep
 import com.amplifyframework.statemachine.Action
 import com.amplifyframework.statemachine.codegen.actions.SignUpActions
-import com.amplifyframework.statemachine.codegen.data.SignUpData
 import com.amplifyframework.statemachine.codegen.events.SignUpEvent
 
 internal object SignUpCognitoActions : SignUpActions {
@@ -68,19 +67,10 @@ internal object SignUpCognitoActions : SignUpActions {
                     }
                 }
 
-                val codeDeliveryDetails = AuthCodeDeliveryDetails(
-                    response?.codeDeliveryDetails?.destination ?: "",
-                    AuthCodeDeliveryDetails.DeliveryMedium.fromString(
-                        response?.codeDeliveryDetails?.deliveryMedium?.value
-                    ),
-                    response?.codeDeliveryDetails?.attributeName
-                )
-                val signUpData = SignUpData(
-                    username,
-                    event.signUpData.validationData,
-                    event.signUpData.clientMetadata,
-                    response?.session,
-                    response?.userSub
+                val codeDeliveryDetails = response?.codeDeliveryDetails.toAuthCodeDeliveryDetails()
+                val signUpData = event.signUpData.copy(
+                    session = response?.session,
+                    userId = response?.userSub
                 )
                 if (response?.userConfirmed == true) {
                     var signUpStep = AuthSignUpStep.DONE
@@ -112,7 +102,7 @@ internal object SignUpCognitoActions : SignUpActions {
                     SignUpEvent(SignUpEvent.EventType.InitiateSignUpComplete(signUpData, signUpResult))
                 }
             } catch (e: Exception) {
-                SignUpEvent(SignUpEvent.EventType.ThrowError(e))
+                SignUpEvent(SignUpEvent.EventType.ThrowError(event.signUpData, e))
             }
             logger.verbose("$id Sending event ${evt.type}")
             dispatcher.send(evt)
@@ -142,13 +132,7 @@ internal object SignUpCognitoActions : SignUpActions {
                     this.clientMetadata = event.signUpData.clientMetadata
                     this.session = event.signUpData.session
                 }
-                val signUpData = SignUpData(
-                    username,
-                    event.signUpData.validationData,
-                    event.signUpData.clientMetadata,
-                    response?.session,
-                    event.signUpData.userId
-                )
+                val signUpData = event.signUpData.copy(session = response?.session)
                 var signUpStep = AuthSignUpStep.DONE
                 if (response?.session != null) {
                     signUpStep = AuthSignUpStep.COMPLETE_AUTO_SIGN_IN
@@ -165,7 +149,7 @@ internal object SignUpCognitoActions : SignUpActions {
                     )
                 SignUpEvent(SignUpEvent.EventType.SignedUp(signUpData, signUpResult))
             } catch (e: Exception) {
-                SignUpEvent(SignUpEvent.EventType.ThrowError(e))
+                SignUpEvent(SignUpEvent.EventType.ThrowError(event.signUpData, e))
             }
             logger.verbose("$id Sending event ${evt.type}")
             dispatcher.send(evt)

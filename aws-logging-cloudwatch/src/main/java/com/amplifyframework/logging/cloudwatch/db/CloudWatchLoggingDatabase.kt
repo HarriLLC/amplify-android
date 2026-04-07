@@ -20,7 +20,7 @@ import android.content.UriMatcher
 import android.database.Cursor
 import android.net.Uri
 import androidx.annotation.VisibleForTesting
-import com.amplifyframework.core.store.EncryptedKeyValueRepository
+import com.amplifyframework.core.store.AmplifyKeyValueRepository
 import com.amplifyframework.logging.cloudwatch.models.CloudWatchLogEvent
 import java.util.UUID
 import kotlinx.coroutines.CoroutineDispatcher
@@ -36,15 +36,15 @@ internal class CloudWatchLoggingDatabase(
     private val logEventsId = 20
     private val passphraseKey = "passphrase"
     private val mb = 1024 * 1024
-    private val encryptedKeyValueRepository: EncryptedKeyValueRepository by lazy {
-        EncryptedKeyValueRepository(
+    private val amplifyKeyValueRepository: AmplifyKeyValueRepository by lazy {
+        AmplifyKeyValueRepository(
             context,
             "awscloudwatchloggingdb"
         )
     }
     private val database by lazy {
         System.loadLibrary("sqlcipher")
-        CloudWatchDatabaseHelper(context, getDatabasePassphrase()).getWritableDatabase()
+        CloudWatchDatabaseHelper(context, getDatabasePassphrase()).writableDatabase
     }
     private val basePath = "cloudwatchlogevents"
     private val contentUri: Uri
@@ -136,18 +136,16 @@ internal class CloudWatchLoggingDatabase(
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    fun getDatabasePassphrase(): String {
-        return encryptedKeyValueRepository.get(passphraseKey) ?: kotlin.run {
-            val passphrase = UUID.randomUUID().toString()
-            // If the database is restored from backup and the passphrase key is not present,
-            // this would result in the database file not getting loaded.
-            // To avoid this error, check to see if the database file exists and, if so, delete it and then recreate the database.
-            val path = context.getDatabasePath(CloudWatchDatabaseHelper.DATABASE_NAME)
-            if (path.exists()) {
-                path.delete()
-            }
-            encryptedKeyValueRepository.put(passphraseKey, passphrase)
-            passphrase
+    fun getDatabasePassphrase(): String = amplifyKeyValueRepository.get(passphraseKey) ?: kotlin.run {
+        val passphrase = UUID.randomUUID().toString()
+        // If the database is restored from backup and the passphrase key is not present,
+        // this would result in the database file not getting loaded.
+        // To avoid this error, check to see if the database file exists and, if so, delete it and then recreate the database.
+        val path = context.getDatabasePath(CloudWatchDatabaseHelper.DATABASE_NAME)
+        if (path.exists()) {
+            path.delete()
         }
+        amplifyKeyValueRepository.put(passphraseKey, passphrase)
+        passphrase
     }
 }

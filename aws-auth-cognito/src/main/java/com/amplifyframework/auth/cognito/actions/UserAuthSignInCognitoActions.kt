@@ -73,19 +73,12 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
                     resolvedSession != null &&
                     resolvedChallenges != null
                 ) {
-                    val activeUserName = AuthHelper.getActiveUsername(
-                        username = event.username,
-                        alternateUsername = initiateAuthResponse.challengeParameters?.get(KEY_USERNAME),
-                        userIDForSRP = initiateAuthResponse.challengeParameters?.get(
-                            KEY_USERID_FOR_SRP
-                        )
-                    )
+                    val activeUserName = AuthHelper.getActiveUsername(event.username, initiateAuthResponse)
 
                     val listOfChallenges = resolvedChallenges.map { it.value }
 
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
-                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = ChallengeNameType.SelectChallenge,
                         session = resolvedSession,
                         availableChallenges = listOfChallenges,
@@ -97,17 +90,10 @@ internal object UserAuthSignInCognitoActions : UserAuthSignInActions {
                     initiateAuthResponse?.challengeParameters != null &&
                     resolvedSession != null
                 ) {
-                    val activeUserName = AuthHelper.getActiveUsername(
-                        username = event.username,
-                        alternateUsername = initiateAuthResponse.challengeParameters?.get(KEY_USERNAME),
-                        userIDForSRP = initiateAuthResponse.challengeParameters?.get(
-                            KEY_USERID_FOR_SRP
-                        )
-                    )
+                    val activeUserName = AuthHelper.getActiveUsername(event.username, initiateAuthResponse)
 
                     SignInChallengeHelper.evaluateNextStep(
                         username = activeUserName,
-                        email = event.metadata[USER_EMAIL].orEmpty(),
                         challengeNameType = initiateAuthResponse.challengeName,
                         session = resolvedSession,
                         challengeParameters = initiateAuthResponse.challengeParameters,

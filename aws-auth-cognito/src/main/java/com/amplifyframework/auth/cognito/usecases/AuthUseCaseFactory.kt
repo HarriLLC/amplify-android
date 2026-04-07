@@ -47,4 +47,133 @@ internal class AuthUseCaseFactory(
         fetchAuthSession = fetchAuthSession(),
         stateMachine = stateMachine
     )
+
+    fun rememberDevice() = RememberDeviceUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine,
+        environment = authEnvironment
+    )
+
+    fun forgetDevice() = ForgetDeviceUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine,
+        environment = authEnvironment
+    )
+
+    fun fetchDevices() = FetchDevicesUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun fetchUserAttributes() = FetchUserAttributesUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun updateUserAttributes() = UpdateUserAttributesUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun confirmUserAttribute() = ConfirmUserAttributeUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun resendUserAttributeConfirmation() = ResendUserAttributeConfirmationUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun getCurrentUser() = GetCurrentUserUseCase(
+        stateMachine = stateMachine
+    )
+
+    fun setupTotp() = SetupTotpUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun verifyTotpSetup() = VerifyTotpSetupUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun updatePassword() = UpdatePasswordUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun resetPassword() = ResetPasswordUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        environment = authEnvironment
+    )
+
+    fun confirmResetPassword() = ConfirmResetPasswordUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        environment = authEnvironment,
+        stateMachine = stateMachine
+    )
+
+    fun signUp() = SignUpUseCase(
+        stateMachine = stateMachine
+    )
+
+    fun confirmSignUp() = ConfirmSignUpUseCase(
+        stateMachine = stateMachine
+    )
+
+    fun resendSignupCode() = ResendSignupCodeUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        environment = authEnvironment,
+        stateMachine = stateMachine
+    )
+
+    fun autoSignIn() = AutoSignInUseCase(
+        stateMachine = stateMachine
+    )
+
+    fun fetchMfaPreference() = FetchMfaPreferenceUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun updateMfaPreference() = UpdateMfaPreferenceUseCase(
+        client = authEnvironment.requireIdentityProviderClient(),
+        fetchAuthSession = fetchAuthSession(),
+        fetchMfaPreference = fetchMfaPreference(),
+        stateMachine = stateMachine
+    )
+
+    fun deleteUser() = DeleteUserUseCase(
+        fetchAuthSession = fetchAuthSession(),
+        stateMachine = stateMachine
+    )
+
+    fun signIn() = SignInUseCase(
+        stateMachine = stateMachine,
+        configuration = authEnvironment.configuration
+    )
+
+    fun confirmSignIn() = ConfirmSignInUseCase(stateMachine = stateMachine)
+
+    fun signOut() = SignOutUseCase(
+        stateMachine = stateMachine
+    )
+
+    fun clearFederationToIdentityPool() = ClearFederationToIdentityPoolUseCase(
+        stateMachine = stateMachine,
+        signOut = signOut()
+    )
 }

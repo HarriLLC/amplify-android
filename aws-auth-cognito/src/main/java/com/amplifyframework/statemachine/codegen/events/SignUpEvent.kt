@@ -23,7 +23,7 @@ import java.util.Date
 
 internal class SignUpEvent(
     val eventType: EventType,
-    override val time: Date? = null,
+    override val time: Date? = null
 ) : StateMachineEvent {
     sealed class EventType {
         data class InitiateSignUp(
@@ -38,7 +38,7 @@ internal class SignUpEvent(
 
         data class SignedUp(val signUpData: SignUpData, val signUpResult: AuthSignUpResult) : EventType()
 
-        data class ThrowError(val exception: Exception) : EventType()
+        data class ThrowError(val signUpData: SignUpData, val exception: Exception) : EventType()
     }
 
     override val type: String = eventType.javaClass.simpleName

@@ -14,14 +14,11 @@
  */
 
 plugins {
-    id("com.android.library")
-    id("kotlin-android")
+    alias(libs.plugins.amplify.android.library)
+    alias(libs.plugins.amplify.publishing)
 }
 
 apply(from = rootProject.file("configuration/checkstyle.gradle"))
-apply(from = rootProject.file("configuration/publishing.gradle"))
-
-group = properties["POM_GROUP"].toString()
 
 android {
     namespace = "com.amplifyframework.pushnotifications.pinpoint"
@@ -34,13 +31,16 @@ android {
 }
 
 dependencies {
+
     implementation(project(":core"))
     implementation(project(":aws-core"))
     implementation(project(":common-core"))
     implementation(project(":aws-pinpoint-core"))
 
     implementation(project(":aws-push-notifications-pinpoint-common"))
-    api(libs.firebasemessaging)
+
+    api(platform(libs.firebase.bom))
+    api(libs.firebase.messaging)
 
     implementation(libs.aws.http)
     implementation(libs.aws.pinpoint)

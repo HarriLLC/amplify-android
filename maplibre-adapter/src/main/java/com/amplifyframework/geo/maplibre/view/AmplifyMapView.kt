@@ -45,13 +45,13 @@ import com.amplifyframework.geo.options.GeoSearchByTextOptions
 import com.amplifyframework.geo.result.GeoSearchResult
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.snackbar.Snackbar
+import kotlin.math.absoluteValue
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.plugins.annotation.Symbol
 import org.maplibre.android.plugins.annotation.SymbolOptions
-import kotlin.math.absoluteValue
 
 /**
  * The AmplifyMapView encapsulates the MapLibre map integration with Amplify.Geo and introduces
@@ -307,14 +307,13 @@ constructor(
         if (coordinates != null) {
             geo.searchByCoordinates(coordinates, ::onSearchResult, ::onSearchError)
         } else {
-            val cameraTarget = map.cameraPosition.target
-            if (cameraTarget != null) {
-                val options = GeoSearchByTextOptions
-                    .builder()
-                    .searchArea(SearchArea.near(cameraTarget.toCoordinates()))
-                    .build()
-                geo.searchByText(query, options, ::onSearchResult, ::onSearchError)
-            }
+            val options = GeoSearchByTextOptions
+                .builder()
+                .searchArea(
+                    SearchArea.near(map.cameraPosition.target!!.toCoordinates())
+                )
+                .build()
+            geo.searchByText(query, options, ::onSearchResult, ::onSearchError)
         }
         this.lastQuery = query
         this.lastQueryBounds = map.projection.visibleRegion.latLngBounds

@@ -14,9 +14,11 @@
  */
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         gradlePluginPortal()
         google()
+        mavenCentral()
     }
 }
 
@@ -24,7 +26,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         maven {
-            url = uri("https://aws.oss.sonatype.org/content/repositories/snapshots/")
+            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
         }
         google()
         mavenCentral()
@@ -43,10 +45,12 @@ include(":aws-api")
 include(":aws-auth-cognito")
 include(":aws-datastore")
 include(":aws-geo-location")
+include(":aws-kinesis")
 include(":aws-predictions")
 include(":aws-predictions-tensorflow")
 include(":aws-push-notifications-pinpoint")
 include(":aws-storage-s3")
+include(":aws-logging-cloudwatch")
 
 // Test Utilities and assets
 include(":testutils")
@@ -59,10 +63,20 @@ include(":aws-api-appsync")
 include(":maplibre-adapter")
 include(":aws-pinpoint-core")
 include(":aws-push-notifications-pinpoint-common")
-include(":aws-logging-cloudwatch")
+
+// Events API
+include(":aws-sdk-appsync-core")
+include(":aws-sdk-appsync-amplify")
+include(":aws-sdk-appsync-events")
+project(":aws-sdk-appsync-core").projectDir = file("appsync/aws-sdk-appsync-core")
+project(":aws-sdk-appsync-amplify").projectDir = file("appsync/aws-sdk-appsync-amplify")
+project(":aws-sdk-appsync-events").projectDir = file("appsync/aws-sdk-appsync-events")
+
 
 // Apollo Extensions
 include(":apollo-appsync")
 include(":apollo-appsync-amplify")
 project(":apollo-appsync").projectDir = file("apollo/apollo-appsync")
 project(":apollo-appsync-amplify").projectDir = file("apollo/apollo-appsync-amplify")
+include(":foundation")
+include(":foundation-bridge")

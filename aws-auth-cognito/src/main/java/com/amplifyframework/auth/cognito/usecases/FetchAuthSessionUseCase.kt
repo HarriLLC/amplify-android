@@ -34,4 +34,15 @@ internal class FetchAuthSessionUseCase(
         }
         return session as AWSCognitoAuthSession
     }
+
+    suspend fun execute(userId: String): AWSCognitoAuthSession {
+        val session = suspendCoroutine { continuation ->
+            plugin.fetchAuthSession(
+                userId,
+                onSuccess = { continuation.resume(it) },
+                onError = { continuation.resumeWithException(it) }
+            )
+        }
+        return session as AWSCognitoAuthSession
+    }
 }

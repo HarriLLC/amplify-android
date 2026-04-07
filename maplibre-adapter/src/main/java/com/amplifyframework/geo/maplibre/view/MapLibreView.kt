@@ -30,8 +30,9 @@ import com.amplifyframework.geo.maplibre.AmplifyMapLibreAdapter
 import com.amplifyframework.geo.maplibre.R
 import com.amplifyframework.geo.maplibre.view.support.AttributionInfoView
 import com.amplifyframework.geo.models.MapStyle
-import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
+import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.plugins.annotation.Symbol
 import org.maplibre.android.plugins.annotation.SymbolManager
@@ -42,7 +43,7 @@ import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 
-typealias MapLibreOptions = org.maplibre.android.maps.MapLibreMapOptions
+typealias MapLibreOptions = MapLibreMapOptions
 
 /**
  * The MapLibreView encapsulates the MapBox map integration with `Amplify.Geo` and
