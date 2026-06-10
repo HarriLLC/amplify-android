@@ -43,4 +43,6 @@ class AmplifyKeyValueRepository(
     override fun remove(dataKey: String) = repository.remove(dataKey)
 
     override fun removeAll() = repository.removeAll()
+
+    override fun keys(): Set<String> = repository.keys()
 }

@@ -95,8 +95,27 @@ internal open class StateMachineForAuth(
         if (userId.isNullOrEmpty() || ignoreUserId) {
             _state.first()
         } else {
-            authStateRepo.get(userId) ?: authStateRepo.getDefaultConfiguredState()
+            authStateRepo.get(userId)
+                ?: globalSessionForUser(userId)
+                ?: authStateRepo.getDefaultConfiguredState()
         }
+
+    /**
+     * Bridges the single-user boot/configure restore to the per-user read path. The configure flow
+     * restores the stored session into the global [_state] (dispatched without a userId, so per the
+     * multi-user contract it stays at `SessionEstablished` rather than resetting to default). When a
+     * per-user read misses [AuthStateRepo] — e.g. on the first launch after an app update, in the
+     * window between the restore emitting `SessionEstablished` and its per-user persist landing —
+     * return that global session IFF it is an established session whose recovered userId matches
+     * [userId]. Returns null otherwise so the caller falls through to the signed-out default.
+     *
+     * Read-only and non-blocking ([_state] is replay=1 and always seeded); does not mutate state.
+     * The userId-match guard keeps this multi-user-safe: in a stacked multi-user state [_state] has
+     * already been reset to the signed-out default, so this returns null and the per-user
+     * [AuthStateRepo] entry remains authoritative.
+     */
+    private suspend fun globalSessionForUser(userId: String): AuthState? =
+        _state.first().takeIf { it.isSessionEstablished && it.recoverableUserIdOrEmpty() == userId }
 
     /**
      * Persists the new state into the per-user repo and emits to [_state].
@@ -124,11 +143,17 @@ internal open class StateMachineForAuth(
      *     single-user tests and observers see `SignedIn` via `getCurrentState()`.
      */
     private fun setAuthState(userId: String, value: AuthState) {
-        _state.tryEmit(value)
+        // Persist to the per-user repo BEFORE emitting to _state. The plugin's configure gate
+        // (AWSCognitoAuthPlugin.suspendWhileConfiguring) releases queued Auth calls as soon as
+        // _state emits a top-level Configured state; emitting first would let a queued
+        // fetchAuthSession(userId) released by the gate observe SessionEstablished on _state while
+        // AuthStateRepo is still empty for that user, forcing the unauthenticated session path.
+        // Persist-then-emit makes the per-user entry durable before the gate can release a reader.
         val effectiveUserId = userId.ifEmpty { value.recoverableUserIdOrEmpty() }
         if (effectiveUserId.isNotEmpty()) {
             authStateRepo.put(effectiveUserId, value)
         }
+        _state.tryEmit(value)
         if (userId.isNotEmpty() && value.isSessionEstablished) {
             _state.tryEmit(authStateRepo.getDefaultConfiguredState())
         }
@@ -172,6 +197,25 @@ internal open class StateMachineForAuth(
      */
     suspend fun getCurrentState(): AuthState = withContext(stateMachineContext) {
         authStateRepo.activeState() ?: _state.first()
+    }
+
+    /**
+     * Resets the GLOBAL active session to a signable, signed-out [AuthState] so a new sign-in can
+     * begin, WITHOUT signing any user out: each user's persisted per-user session in [AuthStateRepo]
+     * is left intact and stays restorable via [getStateForUser] / fetchAuthSession.
+     *
+     * Multi-user enabler. The single-user sign-in gate ([com.amplifyframework.auth.cognito.usecases.SignInUseCase])
+     * rejects a sign-in while any user is signed in; previously the only way past it was a full
+     * sign-out, which removed the signed-in user's (e.g. the master account's) persisted session and
+     * left it unable to refresh — breaking account switching that depends on the master token. This
+     * clears only the in-memory active key and re-seeds [_state] with the configured default; the
+     * encrypted per-user entries that back established sessions are not touched.
+     */
+    suspend fun prepareForReSignIn() {
+        withContext(stateMachineContext) {
+            authStateRepo.clearInMemory()
+            _state.tryEmit(authStateRepo.getDefaultConfiguredState())
+        }
     }
 
     /**

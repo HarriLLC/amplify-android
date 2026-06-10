@@ -35,4 +35,6 @@ class InMemoryKeyValueRepository : KeyValueRepository {
     override fun removeAll() {
         cache.clear()
     }
+
+    override fun keys(): Set<String> = cache.keys.toSet()
 }

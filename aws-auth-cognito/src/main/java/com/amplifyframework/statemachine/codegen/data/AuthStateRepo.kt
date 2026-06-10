@@ -29,6 +29,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * Repository for managing per-user authentication states.
@@ -69,6 +71,71 @@ internal class AuthStateRepo private constructor(
             // Android keystore class not loadable (JVM unit tests without Robolectric backing).
             InMemoryFallbackStore()
         }
+    }
+
+    // Lenient so a state persisted by an older app/SDK version still deserializes after an update —
+    // older models serialized fields newer ones have since dropped (e.g. SignedInData.email).
+    private val lenientJson = Json { ignoreUnknownKeys = true }
+
+    /**
+     * One-time migration of per-user sessions from the pre-refactor store. An older fork
+     * (<= 2.26.x-harri) addressed this repo through its `companion object`, so its
+     * EncryptedSharedPreferences lived under the name "<repo>\$Companion"; the refactor to a
+     * private-constructor class moved persistence to "<repo>". Without this, every per-user session
+     * (master + all businesses) is orphaned on update and the user is signed out. Copies each
+     * established session from [legacyStore] into the current store, reshaping the old
+     * `{authNState, authZState}` envelope into the current
+     * `{signedInData, deviceMetadata, amplifyCredential}` shape (inner objects, incl. tokens, are
+     * preserved verbatim). Runs at most once (guarded by a marker) and never throws — a migration
+     * failure must not break startup.
+     */
+    fun migrateFromLegacyStore(legacyStore: KeyValueRepository) {
+        try {
+            if (encryptedStore.get(LEGACY_MIGRATED_KEY) != null) return
+            val migratedUserIds = mutableListOf<String>()
+            val legacyKeys = try {
+                legacyStore.keys()
+            } catch (e: Exception) {
+                emptySet()
+            }
+            for (key in legacyKeys) {
+                if (key == USER_INDEX_KEY || key == LEGACY_MIGRATED_KEY) continue
+                val legacyValue = try {
+                    legacyStore.get(key)
+                } catch (e: Exception) {
+                    null
+                } ?: continue
+                val reshaped = reshapeLegacyState(legacyValue) ?: continue
+                encryptedStore.put(key, reshaped)
+                migratedUserIds += key
+            }
+            if (migratedUserIds.isNotEmpty()) savePersistedIndex(loadPersistedIndex() + migratedUserIds)
+            encryptedStore.put(LEGACY_MIGRATED_KEY, "true")
+        } catch (e: Exception) {
+            // Best-effort migration; never block startup.
+        }
+    }
+
+    /**
+     * Reshapes a legacy persisted session — `{authNState:{signedInData,deviceMetadata}, authZState:{amplifyCredential}}`
+     * — into the current `{signedInData, deviceMetadata, amplifyCredential}` envelope, preserving the
+     * inner objects (including tokens) verbatim. Returns null when the value isn't a recognizable
+     * legacy session (e.g. a reserved key), so the caller skips it.
+     */
+    private fun reshapeLegacyState(legacyValue: String): String? = try {
+        val root = lenientJson.parseToJsonElement(legacyValue).jsonObject
+        val authN = root["authNState"]?.jsonObject ?: return null
+        val authZ = root["authZState"]?.jsonObject ?: return null
+        val signedInData = authN["signedInData"] ?: return null
+        val deviceMetadata = authN["deviceMetadata"] ?: return null
+        val amplifyCredential = authZ["amplifyCredential"] ?: return null
+        buildJsonObject {
+            put("signedInData", signedInData)
+            put("deviceMetadata", deviceMetadata)
+            put("amplifyCredential", amplifyCredential)
+        }.toString()
+    } catch (e: Exception) {
+        null
     }
 
     /**
@@ -174,7 +241,7 @@ internal class AuthStateRepo private constructor(
     private fun serializeAuthNAndZState(authState: AuthNAndAuthZ): String = Json.encodeToString(authState)
 
     private fun deserializeAuthNAndZState(encodedState: String?): AuthNAndAuthZ? = try {
-        encodedState?.let { Json.decodeFromString<AuthNAndAuthZ>(it) }
+        encodedState?.let { lenientJson.decodeFromString<AuthNAndAuthZ>(it) }
     } catch (e: Exception) {
         null
     }
@@ -207,6 +274,15 @@ internal class AuthStateRepo private constructor(
     companion object {
         private val PREF_KEY = AuthStateRepo::class.java.name
 
+        // Pre-refactor store name. This repo used to be addressed via its companion object, so its
+        // EncryptedSharedPreferences lived under "<repo>$Companion". Sessions persisted by that
+        // version are migrated into [PREF_KEY] on the first launch after an app update.
+        private val LEGACY_PREF_KEY = "$PREF_KEY\$Companion"
+
+        // Marker (inside the current store) recording that the one-time legacy-store migration has
+        // run, so it never repeats. Underscore prefix avoids collision with userId-keyed entries.
+        private const val LEGACY_MIGRATED_KEY = "__amplify_auth_state_repo_legacy_migrated__"
+
         // Reserved key inside the encrypted store: holds the JSON-encoded set of userIds whose
         // sessions have been persisted. Updated transactionally on put/remove for SessionEstablished
         // states so the all-users sign-out path can enumerate users that survived process death.
@@ -227,7 +303,14 @@ internal class AuthStateRepo private constructor(
             return synchronized(this) {
                 instance ?: AuthStateRepo {
                     EncryptedKeyValueRepository(context, PREF_KEY)
-                }.also { instance = it }
+                }.also { repo ->
+                    // Restore per-user sessions persisted under the pre-refactor store name, if any.
+                    // Best-effort: constructing the legacy store can fail on a corrupt/absent keystore.
+                    runCatching {
+                        repo.migrateFromLegacyStore(EncryptedKeyValueRepository(context, LEGACY_PREF_KEY))
+                    }
+                    instance = repo
+                }
             }
         }
 

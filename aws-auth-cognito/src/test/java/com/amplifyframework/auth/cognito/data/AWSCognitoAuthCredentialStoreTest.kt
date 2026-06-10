@@ -53,6 +53,7 @@ class AWSCognitoAuthCredentialStoreTest {
         private const val USER_SCOPED_KEY: String = "${USER_ID}_amplify.$USER_POOL_ID.$IDENTITY_POOL_ID.session"
         private const val OTHER_USER_SCOPED_KEY: String =
             "${OTHER_USER_ID}_amplify.$USER_POOL_ID.$IDENTITY_POOL_ID.session"
+        private const val KEY_MIGRATED: String = "amplify.$USER_POOL_ID.$IDENTITY_POOL_ID.legacySessionMigrated"
     }
 
     private val keyValueRepoID: String = "com.amplify.credentialStore"
@@ -215,6 +216,38 @@ class AWSCognitoAuthCredentialStoreTest {
 
         verify(mockKeyValue, times(1)).put(USER_SCOPED_KEY, serialized(userACredential))
         verify(mockKeyValue, times(1)).put(OTHER_USER_SCOPED_KEY, serialized(userBCredential))
+    }
+
+    @Test
+    fun `retrieveCredential with no userId recovers a per-user session when the default key is empty`() {
+        setupUserPoolConfig()
+        setupIdentityPoolConfig()
+        // Pre-dual-write install (<= 2.26.x-harri): the signed-in session lives ONLY under the
+        // userId-prefixed key; the default key the boot restore reads was never populated, and this
+        // version has never owned the store (no migration marker).
+        Mockito.`when`(mockKeyValue.get(KEY_WITH_USER_AND_IDENTITY_POOL)).thenReturn(null)
+        Mockito.`when`(mockKeyValue.get(KEY_MIGRATED)).thenReturn(null)
+        Mockito.`when`(mockKeyValue.get(USER_SCOPED_KEY)).thenReturn(serialized(getCredential()))
+        Mockito.`when`(mockKeyValue.keys()).thenReturn(setOf(USER_SCOPED_KEY))
+        persistentStore = AWSCognitoAuthCredentialStore(mockContext, mockConfig, mockFactory)
+
+        val actual = persistentStore.retrieveCredential()
+
+        // The pre-update session is recovered (session preserved across the app update)...
+        Assert.assertEquals(getCredential(), actual)
+        // ...and promoted to the default key so subsequent no-arg reads stay consistent.
+        verify(mockKeyValue, times(1)).put(KEY_WITH_USER_AND_IDENTITY_POOL, serialized(getCredential()))
+    }
+
+    @Test
+    fun `retrieveCredential with no userId returns Empty when no session exists at all`() {
+        setupUserPoolConfig()
+        setupIdentityPoolConfig()
+        Mockito.`when`(mockKeyValue.get(Mockito.anyString())).thenReturn(null)
+        Mockito.`when`(mockKeyValue.keys()).thenReturn(emptySet())
+        persistentStore = AWSCognitoAuthCredentialStore(mockContext, mockConfig, mockFactory)
+
+        Assert.assertEquals(AmplifyCredential.Empty, persistentStore.retrieveCredential())
     }
 
     private fun getCredentialFor(userId: String): AmplifyCredential {

@@ -20,7 +20,6 @@ import com.amplifyframework.auth.AuthFactorType
 import com.amplifyframework.auth.cognito.AuthConfiguration
 import com.amplifyframework.auth.cognito.AuthStateMachine
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidUserPoolConfigurationException
-import com.amplifyframework.auth.cognito.exceptions.invalidstate.SignedInException
 import com.amplifyframework.auth.cognito.options.AWSCognitoAuthSignInOptions
 import com.amplifyframework.auth.cognito.options.AuthFlowType
 import com.amplifyframework.auth.cognito.toAuthException
@@ -66,7 +65,16 @@ internal class SignInUseCase(
             when (val authNState = authState.authNState) {
                 is AuthenticationState.NotConfigured -> throw InvalidUserPoolConfigurationException()
                 is AuthenticationState.SignedOut, is AuthenticationState.Configured -> authState
-                is AuthenticationState.SignedIn -> throw SignedInException()
+                is AuthenticationState.SignedIn -> {
+                    // Multi-user fork: another user is already signed in. Rather than rejecting with
+                    // SignedInException (which forced callers to fully sign out first — removing that
+                    // user's persisted session and breaking account switching that relies on it, e.g.
+                    // the master token), reset only the GLOBAL state to a signable state while keeping
+                    // every user's per-user session in AuthStateRepo intact, then let this sign-in
+                    // proceed once the configured state is observed.
+                    stateMachine.prepareForReSignIn()
+                    null
+                }
                 is AuthenticationState.SigningOut -> null
                 is AuthenticationState.SigningIn -> {
                     // Cancel the sign in

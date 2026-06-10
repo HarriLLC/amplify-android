@@ -27,6 +27,9 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import org.junit.Test
 
 class AuthStateRepoTest {
@@ -152,6 +155,60 @@ class AuthStateRepoTest {
         defaultState.authZState.shouldBeInstanceOf<AuthorizationState.Configured>()
     }
 
+    @Test
+    fun `migrateFromLegacyStore reshapes legacy sessions so they restore as established`() {
+        // Two users persisted by the pre-refactor store in the old {authNState, authZState} envelope.
+        val legacyStore = InMemoryKeyValueRepository()
+        legacyStore.put("userA", legacyEnvelope("userA"))
+        legacyStore.put("userB", legacyEnvelope("userB"))
+
+        repo.migrateFromLegacyStore(legacyStore)
+
+        // Both restore as fully-established sessions in the current store.
+        repo.get("userA").shouldNotBeNull().isSessionEstablished shouldBe true
+        repo.get("userB").shouldNotBeNull().isSessionEstablished shouldBe true
+        repo.allUserIds() shouldContainExactlyInAnyOrder listOf("userA", "userB")
+    }
+
+    @Test
+    fun `migrateFromLegacyStore runs at most once`() {
+        val legacyStore = InMemoryKeyValueRepository()
+        legacyStore.put("userA", legacyEnvelope("userA"))
+        repo.migrateFromLegacyStore(legacyStore)
+
+        // A user signs out after migration; a second migration must NOT resurrect them.
+        repo.remove("userA")
+        repo.migrateFromLegacyStore(legacyStore)
+
+        repo.get("userA").shouldBeNull()
+    }
+
+    /**
+     * Builds a session in the pre-refactor `{authNState:{signedInData,deviceMetadata}, authZState:{amplifyCredential}}`
+     * shape by taking the inner JSON the current store writes and re-nesting it, so the fixture uses
+     * the exact serialization the repo expects on read-back.
+     */
+    private fun legacyEnvelope(userId: String): String {
+        val tmpStore = InMemoryKeyValueRepository()
+        AuthStateRepo.createForTest(tmpStore).put(userId, sessionEstablishedState(userId))
+        val current = Json.parseToJsonElement(tmpStore.get(userId)!!).jsonObject
+        return buildJsonObject {
+            put(
+                "authNState",
+                buildJsonObject {
+                    put("signedInData", current.getValue("signedInData"))
+                    put("deviceMetadata", current.getValue("deviceMetadata"))
+                }
+            )
+            put(
+                "authZState",
+                buildJsonObject {
+                    put("amplifyCredential", current.getValue("amplifyCredential"))
+                }
+            )
+        }.toString()
+    }
+
     private fun sessionEstablishedState(userId: String): AuthState = AuthState.Configured(
         authNState = AuthenticationState.SignedIn(
             mockSignedInData(userId = userId, username = userId),
@@ -178,5 +235,6 @@ private class InMemoryKeyValueRepository : KeyValueRepository {
     override fun removeAll() {
         map.clear()
     }
+    override fun keys(): Set<String> = map.keys.toSet()
     fun snapshot(): Map<String, String> = map.toMap()
 }

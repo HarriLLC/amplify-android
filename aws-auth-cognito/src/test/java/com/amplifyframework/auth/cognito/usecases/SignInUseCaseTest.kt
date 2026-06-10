@@ -194,6 +194,27 @@ class SignInUseCaseTest {
     }
 
     @Test
+    fun `resets global state and proceeds when another user is already signed in`() = runTest {
+        // Multi-user: the gate observes a SignedIn state. Instead of throwing SignedInException it
+        // must reset the global state to a signable state (preserving per-user sessions) and proceed.
+        stateFlow.value = mockSignedInState()
+        coEvery { stateMachine.prepareForReSignIn() } answers { stateFlow.value = mockSignedOutState() }
+
+        val deferred = async { useCase.execute("user", "password") }
+        runCurrent()
+        stateFlow.value = mockSignedInState()
+
+        val result = deferred.await()
+        result.isSignedIn shouldBe true
+        coVerify { stateMachine.prepareForReSignIn() }
+        coVerify {
+            stateMachine.send(
+                match<AuthenticationEvent> { it.eventType is AuthenticationEvent.EventType.SignInRequested }
+            )
+        }
+    }
+
+    @Test
     fun `emits signed in event to auth hub`() = runTest {
         val deferred = async { useCase.execute("user", "password") }
 
