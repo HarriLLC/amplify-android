@@ -29,7 +29,6 @@ import com.amplifyframework.auth.cognito.usecases.SignInUseCase
 import com.amplifyframework.auth.cognito.usecases.SignOutUseCase
 import com.amplifyframework.auth.cognito.usecases.WebUiSignInResponseUseCase
 import com.amplifyframework.auth.cognito.usecases.WebUiSignInUseCase
-import com.amplifyframework.auth.exceptions.InvalidStateException
 import com.amplifyframework.auth.result.AuthSignInResult
 import com.amplifyframework.logging.Logger
 import com.amplifyframework.statemachine.codegen.data.AmplifyCredential
@@ -253,38 +252,43 @@ class AuthValidationTest {
 //region SRP and HostedUI
 
     // SRP/Hosted 1
-    // Expected: SRP sign in succeeded, Hosted UI sign in fails, user is still signed in
+    // Expected (multi-user): SRP sign in succeeded, Hosted UI sign in also succeeds — the gate
+    // resets only the global session for re-sign-in instead of rejecting with SignedInException,
+    // preserving per-user sessions (HARRI-368859: SSO-only users were locked out by the old gate).
     @Test
     fun `SRP sign in existing user with correct password, Hosted UI sign in`() {
         signIn(USERNAME_1, PASSWORD_1)
-        shouldThrow<InvalidStateException> { signInHostedUi() }
+        val result = signInHostedUi()
+        assertTrue(result.isSignedIn)
         assertSignedInAs(USERNAME_1)
     }
 
     // SRP/Hosted 2
-    // Expected: Hosted UI sign in succeeded, SRP sign in fails, user is still signed in
+    // Expected (multi-user): Hosted UI sign in succeeded, SRP sign in also succeeds — the native
+    // gate resets the global session for re-sign-in instead of rejecting while signed in.
     @Test
     fun `Hosted UI sign in, SRP sign in existing user with correct password`() {
         signInHostedUi()
-        shouldThrow<InvalidStateException> { signIn(USERNAME_1, PASSWORD_1) }
+        signIn(USERNAME_1, PASSWORD_1)
         assertSignedInAs(USERNAME_1)
     }
 
     // SRP/Hosted 3
-    // Expected: Hosted UI sign in succeeded, SRP sign in fails, user is still signed in
+    // Expected (multi-user): Hosted UI sign in succeeded, the second sign-in proceeds past the
+    // gate and fails with the real credential error instead of InvalidStateException.
     @Test
     fun `Hosted UI sign in, SRP sign in existing user with incorrect password`() {
         signInHostedUi()
-        shouldThrow<InvalidStateException> { signIn(USERNAME_1, INCORRECT_PASSWORD) }
-        assertSignedInAs(USERNAME_1)
+        shouldThrow<InvalidPasswordException> { signIn(USERNAME_1, INCORRECT_PASSWORD) }
     }
 
     // SRP/Hosted 4
-    // Expected: Hosted UI sign in succeeded, SRP sign in fails, user is still signed in
+    // Expected (multi-user): Hosted UI sign in succeeded, the second sign-in proceeds past the
+    // gate and fails with the real user-not-found error instead of InvalidStateException.
     @Test
     fun `Hosted UI sign in, SRP sign in non-existent user`() {
         signInHostedUi()
-        shouldThrow<InvalidStateException> { signIn(INVALID_USERNAME, PASSWORD_1) }
+        shouldThrow<UserNotFoundException> { signIn(INVALID_USERNAME, PASSWORD_1) }
     }
 
     // SRP/Hosted 5
