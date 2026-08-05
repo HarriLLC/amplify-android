@@ -15,11 +15,14 @@
 package com.amplifyframework.auth.cognito.activities
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
+import com.amplifyframework.auth.cognito.HostedUiDiagnostics
 import com.amplifyframework.core.Amplify
 
 /**
@@ -28,12 +31,15 @@ import com.amplifyframework.core.Amplify
 internal class CustomTabsManagerActivity : Activity() {
     private var customTabsLaunched = false
     private var customTabsIntent: Intent? = null
+    private var launchedAtRealtimeMs: Long = 0L
+    private var recreatedAfterProcessDeath = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             extractState(intent.extras)
         } else {
             extractState(savedInstanceState)
+            recreatedAfterProcessDeath = true
         }
     }
 
@@ -46,7 +52,37 @@ internal class CustomTabsManagerActivity : Activity() {
          * stack underneath the Chrome tab where they are going through the HostedUI flow.
          */
         if (!customTabsLaunched) {
-            startActivity(customTabsIntent)
+            val tabIntent = customTabsIntent
+            if (tabIntent == null) {
+                // Custom tabs intent was lost (e.g. process death during the OAuth flow).
+                // Cannot re-launch the browser, so finish gracefully; the auth redirect is
+                // handled separately by HostedUIRedirectActivity.
+                Log.w(TAG, "Custom tabs intent lost after process death, finishing.")
+                HostedUiDiagnostics.record(
+                    HostedUiDiagnostics.EventType.INTENT_LOST,
+                    recreatedAfterProcessDeath = recreatedAfterProcessDeath
+                )
+                finish()
+                return
+            }
+            try {
+                startActivity(tabIntent)
+            } catch (e: ActivityNotFoundException) {
+                // No installed browser can handle the Custom Tab intent. Fail the sign-in
+                // deterministically instead of crashing: the caller receives a cancellation
+                // whose diagnostics identify the missing browser as the cause.
+                Log.e(TAG, "No activity available to launch the hosted UI Custom Tab.", e)
+                HostedUiDiagnostics.record(
+                    HostedUiDiagnostics.EventType.LAUNCH_FAILED,
+                    recreatedAfterProcessDeath = recreatedAfterProcessDeath,
+                    detail = e.message
+                )
+                handleAuthorizationCanceled()
+                finish()
+                return
+            }
+            launchedAtRealtimeMs = SystemClock.elapsedRealtime()
+            HostedUiDiagnostics.record(HostedUiDiagnostics.EventType.LAUNCHED)
             customTabsLaunched = true
             return
         }
@@ -58,9 +94,27 @@ internal class CustomTabsManagerActivity : Activity() {
          * by CustomTabsRedirectActivity. If it is not, we have returned here due to the user
          * closing out of the custom Chrome tab which means we should return a user cancelled error.
          */
+        val tabElapsedMs =
+            if (launchedAtRealtimeMs > 0) SystemClock.elapsedRealtime() - launchedAtRealtimeMs else null
         if (intent.data != null) {
+            HostedUiDiagnostics.record(
+                HostedUiDiagnostics.EventType.COMPLETED,
+                tabElapsedMs = tabElapsedMs,
+                recreatedAfterProcessDeath = recreatedAfterProcessDeath,
+                hadResponseUri = true
+            )
             handleAuthorizationComplete()
         } else {
+            Log.w(
+                TAG,
+                "Hosted UI returned without a response URI after ${tabElapsedMs}ms " +
+                    "(recreatedAfterProcessDeath=$recreatedAfterProcessDeath); reporting user-cancelled."
+            )
+            HostedUiDiagnostics.record(
+                HostedUiDiagnostics.EventType.CANCELLED,
+                tabElapsedMs = tabElapsedMs,
+                recreatedAfterProcessDeath = recreatedAfterProcessDeath
+            )
             handleAuthorizationCanceled()
         }
         finish()
@@ -75,6 +129,7 @@ internal class CustomTabsManagerActivity : Activity() {
         super.onSaveInstanceState(outState)
         outState.putBoolean(CUSTOM_TABS_LAUNCHED_KEY, customTabsLaunched)
         outState.putParcelable(CUSTOM_TABS_INTENT_KEY, customTabsIntent)
+        outState.putLong(CUSTOM_TABS_LAUNCHED_AT_KEY, launchedAtRealtimeMs)
     }
 
     private fun handleAuthorizationComplete() {
@@ -96,12 +151,14 @@ internal class CustomTabsManagerActivity : Activity() {
         }
         customTabsIntent = state.getParcelable(CUSTOM_TABS_INTENT_KEY)
         customTabsLaunched = state.getBoolean(CUSTOM_TABS_LAUNCHED_KEY, false)
+        launchedAtRealtimeMs = state.getLong(CUSTOM_TABS_LAUNCHED_AT_KEY, 0L)
     }
 
     companion object {
         private const val TAG = "AuthClient" // This activity is used for HostedUI auth flow
         const val CUSTOM_TABS_LAUNCHED_KEY = "customTabsLaunched"
         const val CUSTOM_TABS_INTENT_KEY = "customTabsIntent"
+        const val CUSTOM_TABS_LAUNCHED_AT_KEY = "customTabsLaunchedAt"
 
         /**
          * Creates an intent to start an OAuth2 flow in Chrome custom tabs.
