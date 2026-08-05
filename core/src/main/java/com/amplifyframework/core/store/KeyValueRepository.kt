@@ -20,4 +20,11 @@ interface KeyValueRepository {
     fun get(dataKey: String): String?
     fun remove(dataKey: String)
     fun removeAll() = Unit
+
+    /**
+     * Returns all data keys currently held by this repository. Used to recover a session that an
+     * older app version persisted under a userId-prefixed key so it can survive an app update.
+     * Defaults to empty for repositories that do not support key enumeration.
+     */
+    fun keys(): Set<String> = emptySet()
 }

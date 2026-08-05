@@ -52,6 +52,10 @@ class EncryptedKeyValueRepository @VisibleForTesting constructor(
     override fun remove(dataKey: String) = edit { remove(dataKey) }
     override fun removeAll() = edit { clear() }
 
+    // EncryptedSharedPreferences transparently decrypts key names when enumerated, so this returns
+    // the plaintext data keys (used to recover a userId-prefixed session written by an older version).
+    override fun keys(): Set<String> = sharedPreferences.all.keys
+
     private inline fun edit(crossinline block: SharedPreferences.Editor.() -> Unit) = with(sharedPreferences.edit()) {
         block()
         apply()

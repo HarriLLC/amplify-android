@@ -1,0 +1,376 @@
+/*
+ * Copyright 2024 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+package com.amplifyframework.statemachine.codegen.data
+
+import android.content.Context
+import androidx.annotation.VisibleForTesting
+import com.amplifyframework.core.store.EncryptedKeyValueRepository
+import com.amplifyframework.core.store.KeyValueRepository
+import com.amplifyframework.statemachine.codegen.states.AuthState
+import com.amplifyframework.statemachine.codegen.states.AuthenticationState
+import com.amplifyframework.statemachine.codegen.states.AuthorizationState
+import com.amplifyframework.statemachine.codegen.states.SignUpState
+import com.amplifyframework.statemachine.util.LifoMap
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+
+/**
+ * Repository for managing per-user authentication states.
+ *
+ * Holds the most recently active user's state in an in-memory [LifoMap]; persists fully-established
+ * sessions ([AuthState.Configured] with [AuthenticationState.SignedIn] + [AuthorizationState.SessionEstablished])
+ * to encrypted key-value storage so they survive process death. Intermediate states (signing in,
+ * resolving challenges, etc.) live in-memory only.
+ *
+ * Three rules govern [put]:
+ *  - [AuthState.isSignedOut] → remove from both stores.
+ *  - [AuthState.isSessionEstablished] → persist to encrypted store and clear in-memory map so a
+ *    fresh login can stack on top.
+ *  - Otherwise → keep in-memory only.
+ *
+ * @param context Application context used to back the encrypted key-value store.
+ */
+internal class AuthStateRepo private constructor(
+    private val encryptedStoreFactory: () -> KeyValueRepository
+) {
+
+    private val authStateMap = LifoMap.empty<String, AuthState>()
+
+    // Lazy so that simply constructing the repo doesn't immediately touch the keystore /
+    // encrypted shared preferences. The factory may fail to construct
+    // [EncryptedKeyValueRepository] in two scenarios: (1) the Android keystore is corrupted
+    // in production (rare) or (2) the test JVM has no keystore at all (unit tests without
+    // Robolectric, which `LinkageError`s on `androidx.security.crypto.MasterKeys` init).
+    // Either way we want to degrade gracefully — the multi-user routing falls back to
+    // in-memory state, persistence is silently lost, and the app stays alive.
+    private val encryptedStore: KeyValueRepository by lazy {
+        try {
+            encryptedStoreFactory()
+        } catch (e: Exception) {
+            // Keystore corruption / configuration failure in production.
+            InMemoryFallbackStore()
+        } catch (e: LinkageError) {
+            // Android keystore class not loadable (JVM unit tests without Robolectric backing).
+            InMemoryFallbackStore()
+        }
+    }
+
+    // Lenient so a state persisted by an older app/SDK version still deserializes after an update —
+    // older models serialized fields newer ones have since dropped (e.g. SignedInData.email).
+    private val lenientJson = Json { ignoreUnknownKeys = true }
+
+    /**
+     * One-time migration of per-user sessions from the pre-refactor store. An older fork
+     * (<= 2.26.x-harri) addressed this repo through its `companion object`, so its
+     * EncryptedSharedPreferences lived under the name "<repo>\$Companion"; the refactor to a
+     * private-constructor class moved persistence to "<repo>". Without this, every per-user session
+     * (master + all businesses) is orphaned on update and the user is signed out. Copies each
+     * established session from [legacyStore] into the current store, reshaping the old
+     * `{authNState, authZState}` envelope into the current
+     * `{signedInData, deviceMetadata, amplifyCredential}` shape (inner objects, incl. tokens, are
+     * preserved verbatim). Runs at most once (guarded by a marker) and never throws — a migration
+     * failure must not break startup.
+     */
+    fun migrateFromLegacyStore(legacyStore: KeyValueRepository) {
+        try {
+            if (encryptedStore.get(LEGACY_MIGRATED_KEY) != null) return
+            val migratedUserIds = mutableListOf<String>()
+            val legacyKeys = try {
+                legacyStore.keys()
+            } catch (e: Exception) {
+                emptySet()
+            }
+            for (key in legacyKeys) {
+                if (key == USER_INDEX_KEY || key == LEGACY_MIGRATED_KEY) continue
+                val legacyValue = try {
+                    legacyStore.get(key)
+                } catch (e: Exception) {
+                    null
+                } ?: continue
+                val reshaped = reshapeLegacyState(legacyValue) ?: continue
+                encryptedStore.put(key, reshaped)
+                migratedUserIds += key
+            }
+            if (migratedUserIds.isNotEmpty()) savePersistedIndex(loadPersistedIndex() + migratedUserIds)
+            encryptedStore.put(LEGACY_MIGRATED_KEY, "true")
+        } catch (e: Exception) {
+            // Best-effort migration; never block startup.
+        }
+    }
+
+    /**
+     * Reshapes a legacy persisted session — `{authNState:{signedInData,deviceMetadata}, authZState:{amplifyCredential}}`
+     * — into the current `{signedInData, deviceMetadata, amplifyCredential}` envelope, preserving the
+     * inner objects (including tokens) verbatim. Returns null when the value isn't a recognizable
+     * legacy session (e.g. a reserved key), so the caller skips it.
+     */
+    private fun reshapeLegacyState(legacyValue: String): String? = try {
+        val root = lenientJson.parseToJsonElement(legacyValue).jsonObject
+        val authN = root["authNState"]?.jsonObject ?: return null
+        val authZ = root["authZState"]?.jsonObject ?: return null
+        val signedInData = authN["signedInData"] ?: return null
+        val deviceMetadata = authN["deviceMetadata"] ?: return null
+        val amplifyCredential = authZ["amplifyCredential"] ?: return null
+        buildJsonObject {
+            put("signedInData", signedInData)
+            put("deviceMetadata", deviceMetadata)
+            put("amplifyCredential", amplifyCredential)
+        }.toString()
+    } catch (e: Exception) {
+        null
+    }
+
+    /**
+     * Stores the given authentication state for [key] (typically the user id).
+     *
+     * - SignedOut → removes the entry from both in-memory and encrypted stores.
+     * - SessionEstablished → persists to encrypted storage; clears the in-memory map to enable
+     *   stacking another user's login on top.
+     * - Intermediate states → in-memory only.
+     */
+    fun put(key: String, value: AuthState) {
+        if (value.isSignedOut) {
+            remove(key)
+            return
+        }
+        if (value.isSessionEstablished) {
+            val signedIn = value.authNState as AuthenticationState.SignedIn
+            val sessionEstablished = value.authZState as AuthorizationState.SessionEstablished
+            encryptedStore.put(
+                key,
+                serializeAuthNAndZState(
+                    AuthNAndAuthZ(
+                        signedInData = signedIn.signedInData,
+                        deviceMetadata = signedIn.deviceMetadata,
+                        amplifyCredential = sessionEstablished.amplifyCredential
+                    )
+                )
+            )
+            addToPersistedIndex(key)
+            // Clear the in-memory map so a fresh login can stack on top.
+            authStateMap.clear()
+            return
+        }
+        authStateMap.push(key, value)
+    }
+
+    /**
+     * Returns the auth state for [key], preferring the in-memory map over the encrypted store.
+     * Returns null when neither store has an entry.
+     */
+    fun get(key: String): AuthState? = if (authStateMap.containsKey(key)) {
+        authStateMap.get(key)
+    } else {
+        deserializeAuthNAndZState(encryptedStore.get(key))?.let { wrapper ->
+            AuthState.Configured(
+                AuthenticationState.SignedIn(wrapper.signedInData, wrapper.deviceMetadata),
+                AuthorizationState.SessionEstablished(wrapper.amplifyCredential),
+                null
+            )
+        }
+    }
+
+    /**
+     * Removes the entry for [key] from both stores.
+     */
+    fun remove(key: String) {
+        authStateMap.pop(key)
+        encryptedStore.remove(key)
+        removeFromPersistedIndex(key)
+    }
+
+    /**
+     * Returns the most recently activated state (LIFO peek), or null if none.
+     */
+    fun activeState(): AuthState? = authStateMap.peek()
+
+    /**
+     * Returns the most recently activated user id (LIFO peek key), or null if none.
+     * This is the canonical "default" user for no-userId calls.
+     */
+    fun activeStateKey(): String? = authStateMap.peekKey()
+
+    /**
+     * Snapshot of all in-memory user ids (insertion order). Used by the all-users sign-out path.
+     */
+    fun allInMemoryKeys(): List<String> = authStateMap.keys()
+
+    /**
+     * Returns every userId currently tracked by the repo: the union of in-memory keys
+     * (intermediate flows like signing-in, MFA challenges) and persisted keys (users with an
+     * established session that survived process death). Used by the all-users sign-out path.
+     */
+    fun allUserIds(): Set<String> = (authStateMap.keys() + loadPersistedIndex()).toSet()
+
+    /**
+     * Removes every entry from the in-memory map. Encrypted persistence is untouched —
+     * callers that want to wipe persistence too must call [remove] per key.
+     */
+    fun clearInMemory() {
+        authStateMap.clear()
+    }
+
+    /**
+     * The default state used when a userId has no entry in either store. Represents a configured,
+     * signed-out auth machine ready for a fresh login.
+     */
+    fun getDefaultConfiguredState(): AuthState = AuthState.Configured(
+        authNState = AuthenticationState.SignedOut(SignedOutData()),
+        authZState = AuthorizationState.Configured(),
+        authSignUpState = SignUpState.NotStarted()
+    )
+
+    private fun serializeAuthNAndZState(authState: AuthNAndAuthZ): String = Json.encodeToString(authState)
+
+    private fun deserializeAuthNAndZState(encodedState: String?): AuthNAndAuthZ? = try {
+        encodedState?.let { lenientJson.decodeFromString<AuthNAndAuthZ>(it) }
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun loadPersistedIndex(): Set<String> = try {
+        encryptedStore.get(USER_INDEX_KEY)
+            ?.let { Json.decodeFromString(ListSerializer(String.serializer()), it).toSet() }
+            ?: emptySet()
+    } catch (e: Exception) {
+        emptySet()
+    }
+
+    private fun savePersistedIndex(index: Collection<String>) {
+        encryptedStore.put(
+            USER_INDEX_KEY,
+            Json.encodeToString(ListSerializer(String.serializer()), index.toList())
+        )
+    }
+
+    private fun addToPersistedIndex(userId: String) {
+        val index = loadPersistedIndex()
+        if (userId !in index) savePersistedIndex(index + userId)
+    }
+
+    private fun removeFromPersistedIndex(userId: String) {
+        val index = loadPersistedIndex()
+        if (userId in index) savePersistedIndex(index - userId)
+    }
+
+    companion object {
+        private val PREF_KEY = AuthStateRepo::class.java.name
+
+        // Pre-refactor store name. This repo used to be addressed via its companion object, so its
+        // EncryptedSharedPreferences lived under "<repo>$Companion". Sessions persisted by that
+        // version are migrated into [PREF_KEY] on the first launch after an app update.
+        private val LEGACY_PREF_KEY = "$PREF_KEY\$Companion"
+
+        // Marker (inside the current store) recording that the one-time legacy-store migration has
+        // run, so it never repeats. Underscore prefix avoids collision with userId-keyed entries.
+        private const val LEGACY_MIGRATED_KEY = "__amplify_auth_state_repo_legacy_migrated__"
+
+        // Reserved key inside the encrypted store: holds the JSON-encoded set of userIds whose
+        // sessions have been persisted. Updated transactionally on put/remove for SessionEstablished
+        // states so the all-users sign-out path can enumerate users that survived process death.
+        // Underscore prefix avoids collision with userId-keyed entries.
+        private const val USER_INDEX_KEY = "__amplify_auth_state_repo_user_index__"
+
+        @Volatile
+        private var instance: AuthStateRepo? = null
+
+        /**
+         * Returns the process-wide singleton, lazily initialized with the supplied context.
+         * Thread-safe (double-checked locking). Matches the 2.26.14 fork's behaviour: the context
+         * passed to first call is held; in production this is always the Amplify-supplied context
+         * (an application context).
+         */
+        fun getInstance(context: Context): AuthStateRepo {
+            instance?.let { return it }
+            return synchronized(this) {
+                instance ?: AuthStateRepo {
+                    EncryptedKeyValueRepository(context, PREF_KEY)
+                }.also { repo ->
+                    // Restore per-user sessions persisted under the pre-refactor store name, if any.
+                    // Best-effort: constructing the legacy store can fail on a corrupt/absent keystore.
+                    runCatching {
+                        repo.migrateFromLegacyStore(EncryptedKeyValueRepository(context, LEGACY_PREF_KEY))
+                    }
+                    instance = repo
+                }
+            }
+        }
+
+        /**
+         * Test seam: build an instance backed by an injected [KeyValueRepository] (typically an
+         * in-memory fake) so unit tests can drive [AuthStateRepo] without keystore access.
+         */
+        @VisibleForTesting
+        internal fun createForTest(store: KeyValueRepository): AuthStateRepo = AuthStateRepo { store }
+
+        /**
+         * Test seam: drop the singleton so the next [getInstance] call reinitializes. Lets tests
+         * isolate persistence state without leaking across runs.
+         */
+        @VisibleForTesting
+        internal fun resetInstanceForTest() {
+            synchronized(this) { instance = null }
+        }
+    }
+}
+
+/**
+ * Serializable wrapper for persisted auth state. Holds the underlying primitives ([SignedInData],
+ * [DeviceMetadata], [AmplifyCredential]) rather than the [AuthState] sub-types directly, so we don't
+ * need to add `@Serializable` to upstream state classes.
+ */
+@Serializable
+private data class AuthNAndAuthZ(
+    val signedInData: SignedInData,
+    val deviceMetadata: DeviceMetadata,
+    val amplifyCredential: AmplifyCredential
+)
+
+/**
+ * No-op fallback used by [AuthStateRepo] when [EncryptedKeyValueRepository] cannot be constructed
+ * (corrupt keystore in prod / no keystore class in JVM unit tests). Reads/writes go to a process-
+ * local map so multi-user routing keeps working in memory; persistence is silently lost.
+ */
+private class InMemoryFallbackStore : com.amplifyframework.core.store.KeyValueRepository {
+    private val map = java.util.concurrent.ConcurrentHashMap<String, String>()
+    override fun put(dataKey: String, value: String?) {
+        if (value == null) map.remove(dataKey) else map[dataKey] = value
+    }
+    override fun get(dataKey: String): String? = map[dataKey]
+    override fun remove(dataKey: String) {
+        map.remove(dataKey)
+    }
+    override fun removeAll() {
+        map.clear()
+    }
+}
+
+/**
+ * True when [AuthState] represents a fully signed-in user with an established session.
+ * Used by [AuthStateRepo.put] and the multi-user state-machine routing in [AuthStateMachine].
+ */
+internal val AuthState.isSessionEstablished: Boolean
+    get() = this is AuthState.Configured &&
+        this.authNState is AuthenticationState.SignedIn &&
+        this.authZState is AuthorizationState.SessionEstablished
+
+private val AuthState.isSignedOut: Boolean
+    get() = this is AuthState.Configured && this.authNState is AuthenticationState.SignedOut

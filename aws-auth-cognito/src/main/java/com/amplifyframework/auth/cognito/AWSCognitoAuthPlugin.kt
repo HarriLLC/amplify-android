@@ -68,6 +68,7 @@ import com.amplifyframework.core.Consumer
 import com.amplifyframework.core.configuration.AmplifyOutputsData
 import com.amplifyframework.statemachine.codegen.events.AuthEvent
 import com.amplifyframework.statemachine.codegen.states.AuthState
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -77,17 +78,21 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 /**
  * A Cognito implementation of the Auth Plugin.
  */
-class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
+class AWSCognitoAuthPlugin internal constructor(
+    private val configurationTimeout: Duration = 10.seconds
+) : AuthPlugin<AWSCognitoAuthService>() {
     companion object {
         const val AWS_COGNITO_AUTH_LOG_NAMESPACE = "amplify:aws-cognito-auth:%s"
         private const val AWS_COGNITO_AUTH_PLUGIN_KEY = "awsCognitoAuthPlugin"
     }
+
+    constructor() : this(configurationTimeout = 10.seconds)
 
     private val logger = authLogger()
 
@@ -127,9 +132,10 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
     }
 
     override fun initialize(context: Context) {
-        // Block until the state machine is in the configured state.
+        // Wait up to the configured timeout for the state machine to reach Configured, but do not throw on timeout.
+        // This matches legacy behavior where initialization proceeds regardless of whether configuration completes.
         runBlocking {
-            withTimeout(10.seconds) {
+            withTimeoutOrNull(configurationTimeout) {
                 suspendWhileConfiguring()
             }
         }
@@ -146,6 +152,20 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
                 exception
             )
         }
+    }
+
+    /**
+     * Multi-user fork extension. Closes the framework userId path landed in 66fe4ff9 — without
+     * this override, the userId-aware Amplify.configure(config, userId, context) routes here via
+     * Category.configure and hits the empty default in [com.amplifyframework.core.plugin.Plugin],
+     * skipping the actual configuration. We delegate to the no-userId configure since per-user
+     * routing is done at the use-case layer (fetchAuthSession(userId, ...) etc.) — the userId
+     * argument is not consumed at boot. Future work may load the supplied userId's persisted state
+     * eagerly; for now it is informational and equivalent to a single-user boot.
+     */
+    @Throws(AmplifyException::class)
+    override fun configure(pluginConfiguration: JSONObject, userId: String?, context: Context) {
+        configure(pluginConfiguration, context)
     }
 
     @InternalAmplifyApi
@@ -325,6 +345,25 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
     override fun fetchAuthSession(onSuccess: Consumer<AuthSession>, onError: Consumer<AuthException>) =
         enqueue(onSuccess, onError) { useCaseFactory.fetchAuthSession().execute() }
 
+    /**
+     * Multi-user fetch: returns the cached/refreshed session for [userId].
+     *
+     * Reads the user's persisted state from `AuthStateRepo` and refreshes per-user when needed.
+     * When [userId] is empty, behaves like the no-userId overload (active / single-user path).
+     */
+    override fun fetchAuthSession(userId: String, onSuccess: Consumer<AuthSession>, onError: Consumer<AuthException>) =
+        enqueue(onSuccess, onError) { useCaseFactory.fetchAuthSession().execute(userId) }
+
+    /**
+     * Multi-user fetch with options.
+     */
+    override fun fetchAuthSession(
+        userId: String,
+        options: AuthFetchSessionOptions,
+        onSuccess: Consumer<AuthSession>,
+        onError: Consumer<AuthException>
+    ) = enqueue(onSuccess, onError) { useCaseFactory.fetchAuthSession().execute(userId, options) }
+
     override fun rememberDevice(onSuccess: Action, onError: Consumer<AuthException>) =
         enqueue(onSuccess, onError) { useCaseFactory.rememberDevice().execute() }
 
@@ -440,6 +479,24 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
         onError = ::throwIt
     ) { useCaseFactory.signOut().execute(options) }
 
+    /**
+     * Multi-user sign-out: signs out the user identified by [userId] only.
+     *
+     * Reads the user's persisted state from `AuthStateRepo`, dispatches the sign-out event scoped
+     * to [userId], and removes only that user's persisted credentials. Other signed-in users are
+     * unaffected.
+     */
+    override fun signOut(userId: String, onComplete: Consumer<AuthSignOutResult>) = enqueue(
+        onComplete,
+        onError = ::throwIt
+    ) { useCaseFactory.signOut().execute(userId, AuthSignOutOptions.builder().build()) }
+
+    /**
+     * Multi-user sign-out with options.
+     */
+    override fun signOut(userId: String, options: AuthSignOutOptions, onComplete: Consumer<AuthSignOutResult>) =
+        enqueue(onComplete, onError = ::throwIt) { useCaseFactory.signOut().execute(userId, options) }
+
     override fun deleteUser(onSuccess: Action, onError: Consumer<AuthException>) = enqueue(onSuccess, onError) {
         useCaseFactory.deleteUser().execute()
     }
@@ -539,12 +596,50 @@ class AWSCognitoAuthPlugin : AuthPlugin<AWSCognitoAuthService>() {
     }
 
     /**
+     * Multi-user federate to identity pool. Routes the federated session under [userId].
+     * @param providerToken Provider token to start the federation for
+     * @param authProvider The auth provider you want to federate for (e.g. Facebook, Google, etc.)
+     * @param userId The userId the federated session belongs to
+     * @param onSuccess Success callback
+     * @param onError Error callback
+     */
+    fun federateToIdentityPool(
+        providerToken: String,
+        authProvider: AuthProvider,
+        userId: String,
+        onSuccess: Consumer<FederateToIdentityPoolResult>,
+        onError: Consumer<AuthException>
+    ) = enqueue(onSuccess, onError) {
+        useCaseFactory.federateToIdentityPool().execute(providerToken, authProvider, userId)
+    }
+
+    /**
+     * Multi-user federate to identity pool with options.
+     */
+    fun federateToIdentityPool(
+        providerToken: String,
+        authProvider: AuthProvider,
+        userId: String,
+        options: FederateToIdentityPoolOptions,
+        onSuccess: Consumer<FederateToIdentityPoolResult>,
+        onError: Consumer<AuthException>
+    ) = enqueue(onSuccess, onError) {
+        useCaseFactory.federateToIdentityPool().execute(providerToken, authProvider, userId, options)
+    }
+
+    /**
      * Clear Federation to Identity Pool
      * @param onSuccess Success callback
      * @param onError Error callback
      */
     fun clearFederationToIdentityPool(onSuccess: Action, onError: Consumer<AuthException>) =
         enqueue(onSuccess, onError) { useCaseFactory.clearFederationToIdentityPool().execute() }
+
+    /**
+     * Multi-user clear federation: clears the federated-identity-pool entry for [userId] only.
+     */
+    fun clearFederationToIdentityPool(userId: String, onSuccess: Action, onError: Consumer<AuthException>) =
+        enqueue(onSuccess, onError) { useCaseFactory.clearFederationToIdentityPool().execute(userId) }
 
     fun fetchMFAPreference(onSuccess: Consumer<UserMFAPreference>, onError: Consumer<AuthException>) =
         enqueue(onSuccess, onError) { useCaseFactory.fetchMfaPreference().execute() }

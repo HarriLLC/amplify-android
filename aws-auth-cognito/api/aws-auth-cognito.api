@@ -10,11 +10,14 @@ public final class com/amplifyframework/auth/cognito/AWSCognitoAuthPlugin : com/
 	public static final field AWS_COGNITO_AUTH_LOG_NAMESPACE Ljava/lang/String;
 	public static final field Companion Lcom/amplifyframework/auth/cognito/AWSCognitoAuthPlugin$Companion;
 	public fun <init> ()V
+	public synthetic fun <init> (JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun associateWebAuthnCredential (Landroid/app/Activity;Lcom/amplifyframework/auth/options/AuthAssociateWebAuthnCredentialsOptions;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public fun associateWebAuthnCredential (Landroid/app/Activity;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public fun autoSignIn (Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public final fun clearFederationToIdentityPool (Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
+	public final fun clearFederationToIdentityPool (Ljava/lang/String;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public fun configure (Lorg/json/JSONObject;Landroid/content/Context;)V
+	public fun configure (Lorg/json/JSONObject;Ljava/lang/String;Landroid/content/Context;)V
 	public fun confirmResetPassword (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/amplifyframework/auth/options/AuthConfirmResetPasswordOptions;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public fun confirmResetPassword (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public fun confirmSignIn (Ljava/lang/String;Lcom/amplifyframework/auth/options/AuthConfirmSignInOptions;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
@@ -27,8 +30,12 @@ public final class com/amplifyframework/auth/cognito/AWSCognitoAuthPlugin : com/
 	public fun deleteWebAuthnCredential (Ljava/lang/String;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public final fun federateToIdentityPool (Ljava/lang/String;Lcom/amplifyframework/auth/AuthProvider;Lcom/amplifyframework/auth/cognito/options/FederateToIdentityPoolOptions;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public final fun federateToIdentityPool (Ljava/lang/String;Lcom/amplifyframework/auth/AuthProvider;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
+	public final fun federateToIdentityPool (Ljava/lang/String;Lcom/amplifyframework/auth/AuthProvider;Ljava/lang/String;Lcom/amplifyframework/auth/cognito/options/FederateToIdentityPoolOptions;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
+	public final fun federateToIdentityPool (Ljava/lang/String;Lcom/amplifyframework/auth/AuthProvider;Ljava/lang/String;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public fun fetchAuthSession (Lcom/amplifyframework/auth/options/AuthFetchSessionOptions;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public fun fetchAuthSession (Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
+	public fun fetchAuthSession (Ljava/lang/String;Lcom/amplifyframework/auth/options/AuthFetchSessionOptions;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
+	public fun fetchAuthSession (Ljava/lang/String;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public fun fetchDevices (Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public final fun fetchMFAPreference (Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public fun fetchUserAttributes (Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
@@ -59,6 +66,8 @@ public final class com/amplifyframework/auth/cognito/AWSCognitoAuthPlugin : com/
 	public fun signInWithWebUI (Landroid/app/Activity;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public fun signOut (Lcom/amplifyframework/auth/options/AuthSignOutOptions;Lcom/amplifyframework/core/Consumer;)V
 	public fun signOut (Lcom/amplifyframework/core/Consumer;)V
+	public fun signOut (Ljava/lang/String;Lcom/amplifyframework/auth/options/AuthSignOutOptions;Lcom/amplifyframework/core/Consumer;)V
+	public fun signOut (Ljava/lang/String;Lcom/amplifyframework/core/Consumer;)V
 	public fun signUp (Ljava/lang/String;Ljava/lang/String;Lcom/amplifyframework/auth/options/AuthSignUpOptions;Lcom/amplifyframework/core/Consumer;Lcom/amplifyframework/core/Consumer;)V
 	public final fun updateMFAPreference (Lcom/amplifyframework/auth/cognito/MFAPreference;Lcom/amplifyframework/auth/cognito/MFAPreference;Lcom/amplifyframework/auth/cognito/MFAPreference;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
 	public final fun updateMFAPreference (Lcom/amplifyframework/auth/cognito/MFAPreference;Lcom/amplifyframework/auth/cognito/MFAPreference;Lcom/amplifyframework/core/Action;Lcom/amplifyframework/core/Consumer;)V
@@ -108,6 +117,45 @@ public final class com/amplifyframework/auth/cognito/BuildConfig {
 	public static final field LIBRARY_PACKAGE_NAME Ljava/lang/String;
 	public static final field VERSION_NAME Ljava/lang/String;
 	public fun <init> ()V
+}
+
+public final class com/amplifyframework/auth/cognito/HostedUiDiagnostics {
+	public static final field INSTANCE Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics;
+	public final fun consumeLastEvent ()Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$Event;
+	public final fun getLastEvent ()Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$Event;
+}
+
+public final class com/amplifyframework/auth/cognito/HostedUiDiagnostics$Event {
+	public fun <init> (Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;JLjava/lang/Long;ZZLjava/lang/String;)V
+	public final fun component1 ()Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/Long;
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;JLjava/lang/Long;ZZLjava/lang/String;)Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$Event;
+	public static synthetic fun copy$default (Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$Event;Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;JLjava/lang/Long;ZZLjava/lang/String;ILjava/lang/Object;)Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$Event;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAtEpochMs ()J
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getHadResponseUri ()Z
+	public final fun getRecreatedAfterProcessDeath ()Z
+	public final fun getTabElapsedMs ()Ljava/lang/Long;
+	public final fun getType ()Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType : java/lang/Enum {
+	public static final field CANCELLED Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static final field COMPLETED Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static final field INTENT_LOST Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static final field LAUNCHED Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static final field LAUNCH_FAILED Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static final field SIGNED_IN_STATE_RECOVERED Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
+	public static fun values ()[Lcom/amplifyframework/auth/cognito/HostedUiDiagnostics$EventType;
 }
 
 public final class com/amplifyframework/auth/cognito/MFAPreference : java/lang/Enum {
@@ -498,6 +546,7 @@ public final class com/amplifyframework/auth/cognito/options/AWSCognitoAuthSignO
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getBrowserPackage ()Ljava/lang/String;
 	public fun hashCode ()I
+	public fun isSignOutAllUsers ()Z
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -508,6 +557,7 @@ public final class com/amplifyframework/auth/cognito/options/AWSCognitoAuthSignO
 	public synthetic fun build ()Lcom/amplifyframework/auth/options/AuthSignOutOptions;
 	public fun getThis ()Lcom/amplifyframework/auth/cognito/options/AWSCognitoAuthSignOutOptions$CognitoBuilder;
 	public synthetic fun getThis ()Lcom/amplifyframework/auth/options/AuthSignOutOptions$Builder;
+	public fun signOutAllUsers (Z)Lcom/amplifyframework/auth/cognito/options/AWSCognitoAuthSignOutOptions$CognitoBuilder;
 }
 
 public final class com/amplifyframework/auth/cognito/options/AWSCognitoAuthSignUpOptions : com/amplifyframework/auth/options/AuthSignUpOptions {

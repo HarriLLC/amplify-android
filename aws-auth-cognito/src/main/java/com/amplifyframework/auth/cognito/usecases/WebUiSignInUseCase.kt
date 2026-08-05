@@ -20,9 +20,9 @@ import com.amplifyframework.auth.AuthChannelEventName
 import com.amplifyframework.auth.AuthProvider
 import com.amplifyframework.auth.cognito.AuthConfiguration
 import com.amplifyframework.auth.cognito.AuthStateMachine
+import com.amplifyframework.auth.cognito.HostedUiDiagnostics
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidOauthConfigurationException
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidUserPoolConfigurationException
-import com.amplifyframework.auth.cognito.exceptions.invalidstate.SignedInException
 import com.amplifyframework.auth.cognito.helpers.HostedUIHelper
 import com.amplifyframework.auth.cognito.options.AWSCognitoAuthWebUISignInOptions
 import com.amplifyframework.auth.cognito.toAuthException
@@ -86,6 +86,8 @@ internal class WebUiSignInUseCase(
                         authZState is AuthorizationState.SessionEstablished -> {
                         AuthSignInResult(
                             true,
+                            authNState.signedInData.username,
+                            authNState.signedInData.userId,
                             AuthNextSignInStep(AuthSignInStep.DONE, mapOf(), null, null, null, null)
                         )
                     }
@@ -99,14 +101,26 @@ internal class WebUiSignInUseCase(
 
     private suspend fun waitForStateThatAllowsSignIn() {
         stateMachine.state.mapNotNull { authState ->
-            when (authState.authNState) {
+            when (val authNState = authState.authNState) {
                 is AuthenticationState.NotConfigured -> throw InvalidUserPoolConfigurationException()
-                is AuthenticationState.SignedOut -> authState
-                is AuthenticationState.SignedIn -> throw SignedInException()
+                is AuthenticationState.SignedOut, is AuthenticationState.Configured -> authState
+                is AuthenticationState.SignedIn -> {
+                    // Multi-user fork: mirror SignInUseCase. Another user's (or a stale) global
+                    // SignedIn state must not reject a hosted-UI sign-in with SignedInException —
+                    // that permanently locked out SSO-only users whenever the global session
+                    // diverged from the app's account state (HARRI-368859). Reset only the GLOBAL
+                    // state to a signable state, keeping every user's persisted per-user session
+                    // in AuthStateRepo intact, then proceed once a signable state is observed.
+                    HostedUiDiagnostics.record(HostedUiDiagnostics.EventType.SIGNED_IN_STATE_RECOVERED)
+                    stateMachine.prepareForReSignIn()
+                    null
+                }
+                is AuthenticationState.SigningOut -> null
                 is AuthenticationState.SigningIn -> {
                     stateMachine.send(AuthenticationEvent(AuthenticationEvent.EventType.CancelSignIn()))
                     null
                 }
+                is AuthenticationState.Error -> throw authNState.exception.toAuthException("Sign in failed.")
                 else -> throw InvalidStateException()
             }
         }.first()

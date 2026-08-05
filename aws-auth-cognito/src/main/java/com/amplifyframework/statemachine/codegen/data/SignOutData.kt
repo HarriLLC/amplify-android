@@ -18,5 +18,8 @@ package com.amplifyframework.statemachine.codegen.data
 internal data class SignOutData(
     val globalSignOut: Boolean = false,
     val browserPackage: String? = null,
-    val bypassCancel: Boolean = false // When user deleted, even if sign out is cancelled, proceed to sign out locally
+    val bypassCancel: Boolean = false, // When user deleted, even if sign out is cancelled, proceed to sign out locally
+    val userId: String? = null, // Multi-user: scopes the sign-out to this user; null = active/legacy single-user
+    // Multi-user: when true, the action layer iterates AuthStateRepo and signs out every user.
+    val signOutAllUsers: Boolean = false
 )

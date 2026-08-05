@@ -45,15 +45,74 @@ internal class SignOutUseCase(
     private val emitter: AuthHubEventEmitter = AuthHubEventEmitter()
 ) {
 
-    suspend fun execute(options: AuthSignOutOptions = AuthSignOutOptions.builder().build()): AuthSignOutResult {
-        val authState = stateMachine.getCurrentState()
+    suspend fun execute(options: AuthSignOutOptions = AuthSignOutOptions.builder().build()): AuthSignOutResult =
+        execute(userId = null, options = options)
+
+    /**
+     * Multi-user sign-out: signs out the user identified by [userId], or — when [userId] is null —
+     * either every tracked user (default) or just the active user (opt-out).
+     *
+     * **No explicit [userId]:** routing is governed by
+     * [AWSCognitoAuthSignOutOptions.isSignOutAllUsers] on [options]. The default is `true`, which
+     * iterates every user returned by [AuthStateMachine.allUserIds] (the union of in-memory and
+     * persisted users in [AuthStateRepo]) and signs each one out sequentially. Pass an
+     * [AWSCognitoAuthSignOutOptions] with `signOutAllUsers = false` to revert to single-active-user
+     * semantics for callers that haven't opted into multi-user. When the repo is empty, the active
+     * state-machine path is used, preserving upstream single-user behaviour.
+     *
+     * **Explicit [userId]:** reads that user's state via [AuthStateMachine.getStateForUser],
+     * dispatches the sign-out event scoped to [userId], and awaits the terminal transition through
+     * the global state flow (per-user transitions surface there because the state machine's
+     * single-thread context serialises them). [AWSCognitoAuthSignOutOptions.isSignOutAllUsers] has
+     * no effect in this branch.
+     *
+     * Iteration result aggregation: returns [AWSCognitoAuthSignOutResult.CompleteSignOut] when every
+     * user signs out cleanly; otherwise returns the most recent non-complete per-user result
+     * (partial or failed). Each user's sign-out is independent — one user's failure does not abort
+     * the iteration.
+     */
+    suspend fun execute(
+        userId: String?,
+        options: AuthSignOutOptions = AuthSignOutOptions.builder().build()
+    ): AuthSignOutResult {
+        if (userId.isNullOrEmpty()) {
+            val signOutAllUsers = (options as? AWSCognitoAuthSignOutOptions)?.isSignOutAllUsers ?: true
+            if (signOutAllUsers) {
+                val userIds = stateMachine.allUserIds()
+                if (userIds.isNotEmpty()) {
+                    return signOutEachUser(userIds, options)
+                }
+                // Repo is empty — fall through to the active-user / upstream single-user path.
+            }
+        }
+        return signOutOne(userId, options)
+    }
+
+    private suspend fun signOutEachUser(userIds: Set<String>, options: AuthSignOutOptions): AuthSignOutResult {
+        var lastNonComplete: AuthSignOutResult? = null
+        for (uid in userIds) {
+            val result = signOutOne(uid, options)
+            if (result !is AWSCognitoAuthSignOutResult.CompleteSignOut) {
+                lastNonComplete = result
+            }
+        }
+        return lastNonComplete ?: AWSCognitoAuthSignOutResult.CompleteSignOut
+    }
+
+    private suspend fun signOutOne(userId: String?, options: AuthSignOutOptions): AuthSignOutResult {
+        val authState = if (userId.isNullOrEmpty()) {
+            stateMachine.getCurrentState()
+        } else {
+            stateMachine.getStateForUser(userId)
+        }
         return when (authState.authNState) {
             is AuthenticationState.NotConfigured -> AWSCognitoAuthSignOutResult.CompleteSignOut
             // Continue sign out and clear auth or guest credentials
             is AuthenticationState.SignedIn, is AuthenticationState.SignedOut -> {
                 completeSignOut(
-                    event = createSignOutEvent(options),
-                    sendHubEvent = true
+                    event = createSignOutEvent(options, userId),
+                    sendHubEvent = true,
+                    userId = userId
                 )
             }
             is AuthenticationState.FederatedToIdentityPool -> {
@@ -68,11 +127,21 @@ internal class SignOutUseCase(
         }
     }
 
-    suspend fun completeSignOut(event: StateMachineEvent, sendHubEvent: Boolean): AuthSignOutResult {
+    suspend fun completeSignOut(
+        event: StateMachineEvent,
+        sendHubEvent: Boolean,
+        userId: String? = null
+    ): AuthSignOutResult {
         var cancellationException: UserCancelledException? = null
 
         val result = stateMachine.state
-            .onSubscription { stateMachine.send(event) }
+            .onSubscription {
+                if (userId.isNullOrEmpty()) {
+                    stateMachine.send(event)
+                } else {
+                    stateMachine.send(event, userId)
+                }
+            }
             .drop(1) // Ignore current state
             .mapNotNull { authState ->
                 if (authState !is AuthState.Configured) {
@@ -118,12 +187,14 @@ internal class SignOutUseCase(
         return result
     }
 
-    private fun createSignOutEvent(options: AuthSignOutOptions): StateMachineEvent = AuthenticationEvent(
-        AuthenticationEvent.EventType.SignOutRequested(
-            SignOutData(
-                options.isGlobalSignOut,
-                (options as? AWSCognitoAuthSignOutOptions)?.browserPackage
+    private fun createSignOutEvent(options: AuthSignOutOptions, userId: String? = null): StateMachineEvent =
+        AuthenticationEvent(
+            AuthenticationEvent.EventType.SignOutRequested(
+                SignOutData(
+                    globalSignOut = options.isGlobalSignOut,
+                    browserPackage = (options as? AWSCognitoAuthSignOutOptions)?.browserPackage,
+                    userId = userId
+                )
             )
         )
-    )
 }

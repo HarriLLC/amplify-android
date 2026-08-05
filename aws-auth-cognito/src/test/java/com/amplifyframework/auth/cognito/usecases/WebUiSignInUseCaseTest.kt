@@ -22,7 +22,7 @@ import com.amplifyframework.auth.cognito.AuthConfiguration
 import com.amplifyframework.auth.cognito.AuthStateMachine
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidOauthConfigurationException
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidUserPoolConfigurationException
-import com.amplifyframework.auth.cognito.exceptions.invalidstate.SignedInException
+import com.amplifyframework.auth.cognito.mockSignedInData
 import com.amplifyframework.auth.cognito.testUtil.authState
 import com.amplifyframework.auth.exceptions.InvalidStateException
 import com.amplifyframework.auth.exceptions.UnknownException
@@ -42,6 +42,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockk
@@ -100,15 +101,77 @@ class WebUiSignInUseCaseTest {
     }
 
     @Test
-    fun `throws SignedInException when already signed in`() = runTest {
+    fun `resets global state and proceeds when another user is already signed in`() = runTest {
+        // Multi-user: the gate observes a SignedIn state. Instead of throwing SignedInException it
+        // must reset the global state to a signable state (preserving per-user sessions) and
+        // proceed with the hosted-UI sign-in (HARRI-368859: SSO-only users were locked out).
         stateFlow.value = authState(
-            authNState = AuthenticationState.SignedIn(mockk(), mockk()),
+            authNState = AuthenticationState.SignedIn(mockSignedInData(), mockk()),
+            authZState = AuthorizationState.SessionEstablished(mockk())
+        )
+        coEvery { stateMachine.prepareForReSignIn() } answers {
+            stateFlow.value = authState(
+                authNState = AuthenticationState.SignedOut(SignedOutData()),
+                authZState = AuthorizationState.Configured()
+            )
+        }
+
+        val deferred = backgroundScope.async {
+            useCase.execute(provider = AuthProvider.google(), callingActivity = callingActivity)
+        }
+        runCurrent()
+
+        coVerify { stateMachine.prepareForReSignIn() }
+        verify {
+            stateMachine.send(
+                withArg<StateMachineEvent> {
+                    val event = it.shouldBeInstanceOf<AuthenticationEvent>()
+                    val type = event.eventType
+                        .shouldBeInstanceOf<AuthenticationEvent.EventType.SignInRequested>()
+                    type.signInData.shouldBeInstanceOf<SignInData.HostedUISignInData>()
+                }
+            )
+        }
+
+        stateFlow.value = authState(
+            authNState = AuthenticationState.SignedIn(mockSignedInData(), mockk()),
+            authZState = AuthorizationState.SessionEstablished(mockk())
+        )
+
+        val result = deferred.await()
+        result.isSignedIn shouldBe true
+    }
+
+    @Test
+    fun `proceeds with sign in from the Configured state`() = runTest {
+        // prepareForReSignIn resets the global state to Configured — the gate must treat it as
+        // signable exactly like SignInUseCase does, not reject it with InvalidStateException.
+        stateFlow.value = authState(
+            authNState = AuthenticationState.Configured(),
             authZState = AuthorizationState.Configured()
         )
 
-        shouldThrow<SignedInException> {
+        val deferred = backgroundScope.async {
             useCase.execute(callingActivity = callingActivity)
         }
+        runCurrent()
+
+        verify {
+            stateMachine.send(
+                withArg<StateMachineEvent> {
+                    val event = it.shouldBeInstanceOf<AuthenticationEvent>()
+                    event.eventType.shouldBeInstanceOf<AuthenticationEvent.EventType.SignInRequested>()
+                }
+            )
+        }
+
+        stateFlow.value = authState(
+            authNState = AuthenticationState.SignedIn(mockSignedInData(), mockk()),
+            authZState = AuthorizationState.SessionEstablished(mockk())
+        )
+
+        val result = deferred.await()
+        result.isSignedIn shouldBe true
     }
 
     @Test
@@ -175,7 +238,7 @@ class WebUiSignInUseCaseTest {
 
         // Now transition to signed in to complete the flow
         stateFlow.value = authState(
-            authNState = AuthenticationState.SignedIn(mockk(), mockk()),
+            authNState = AuthenticationState.SignedIn(mockSignedInData(), mockk()),
             authZState = AuthorizationState.SessionEstablished(mockk())
         )
 
@@ -191,7 +254,7 @@ class WebUiSignInUseCaseTest {
         runCurrent()
 
         stateFlow.value = authState(
-            authNState = AuthenticationState.SignedIn(mockk(), mockk()),
+            authNState = AuthenticationState.SignedIn(mockSignedInData(), mockk()),
             authZState = AuthorizationState.SessionEstablished(mockk())
         )
 
@@ -208,7 +271,7 @@ class WebUiSignInUseCaseTest {
         runCurrent()
 
         stateFlow.value = authState(
-            authNState = AuthenticationState.SignedIn(mockk(), mockk()),
+            authNState = AuthenticationState.SignedIn(mockSignedInData(), mockk()),
             authZState = AuthorizationState.SessionEstablished(mockk())
         )
 
@@ -296,11 +359,23 @@ class WebUiSignInUseCaseTest {
     @Test
     fun `throws InvalidStateException for unexpected states`() = runTest {
         stateFlow.value = authState(
-            authNState = AuthenticationState.Configured(),
+            authNState = AuthenticationState.FederatedToIdentityPool(),
             authZState = AuthorizationState.Configured()
         )
 
         shouldThrow<InvalidStateException> {
+            useCase.execute(callingActivity = callingActivity)
+        }
+    }
+
+    @Test
+    fun `throws AuthException when the authentication state is Error`() = runTest {
+        stateFlow.value = authState(
+            authNState = AuthenticationState.Error(RuntimeException("boom")),
+            authZState = AuthorizationState.Configured()
+        )
+
+        shouldThrow<UnknownException> {
             useCase.execute(callingActivity = callingActivity)
         }
     }
