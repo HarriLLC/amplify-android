@@ -20,6 +20,7 @@ import com.amplifyframework.auth.AuthChannelEventName
 import com.amplifyframework.auth.AuthProvider
 import com.amplifyframework.auth.cognito.AuthConfiguration
 import com.amplifyframework.auth.cognito.AuthStateMachine
+import com.amplifyframework.auth.cognito.HostedUiDiagnostics
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidOauthConfigurationException
 import com.amplifyframework.auth.cognito.exceptions.configuration.InvalidUserPoolConfigurationException
 import com.amplifyframework.auth.cognito.helpers.HostedUIHelper
@@ -110,6 +111,7 @@ internal class WebUiSignInUseCase(
                     // diverged from the app's account state (HARRI-368859). Reset only the GLOBAL
                     // state to a signable state, keeping every user's persisted per-user session
                     // in AuthStateRepo intact, then proceed once a signable state is observed.
+                    HostedUiDiagnostics.record(HostedUiDiagnostics.EventType.SIGNED_IN_STATE_RECOVERED)
                     stateMachine.prepareForReSignIn()
                     null
                 }
